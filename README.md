@@ -2,7 +2,7 @@
 
 A desktop application that simplifies Telegram sticker creation by automatically formatting images and videos to meet Telegram's requirements. Process images to PNG/WEBP (512px), convert videos to WEBM (≤3s, ≤256KB), and create sticker set icons.
 
-![TeleSticker Screenshot](screenshot.png)
+<img src="https://raw.githubusercontent.com/PupsWorldPeace/TeleSticker/master/screenshot.png" alt="TeleSticker Screenshot" width="800">
 
 ## Features
 
