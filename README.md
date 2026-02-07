@@ -4,7 +4,7 @@ A powerful, self-hosted Telegram sticker maker that runs entirely on your machin
 
 ## Demo
 
-https://github.com/LordEmonad/TeleSticker/raw/master/demo.mp4
+https://github.com/user-attachments/assets/a7bacaed-3944-41fc-af41-4d522e9e0055
 
 ## Features
 
