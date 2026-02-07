@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeleSticker v2</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/animations.css">
+    <link rel="stylesheet" href="/static/css/editor.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-logo">
+                <div class="logo-icon"><i class="fas fa-paper-plane"></i></div>
+                <h1>TeleSticker</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
+                <button class="btn-icon" id="themeToggle" title="Toggle theme"><i class="fas fa-moon"></i></button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav" id="tabNav">
+            <button class="tab-btn active" data-tab="upload">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span class="tab-label">Upload</span>
+                <span class="badge" id="uploadCount" style="display:none">0</span>
+            </button>
+            <button class="tab-btn" data-tab="editor">
+                <i class="fas fa-paint-brush"></i>
+                <span class="tab-label">Editor</span>
+            </button>
+            <button class="tab-btn" data-tab="pack">
+                <i class="fas fa-layer-group"></i>
+                <span class="tab-label">Pack</span>
+            </button>
+            <button class="tab-btn" data-tab="telegram">
+                <i class="fab fa-telegram-plane"></i>
+                <span class="tab-label">Telegram</span>
+            </button>
+        </nav>
+
+        <!-- Upload Tab -->
+        <div class="tab-content active" id="tab-upload">
+            <div class="card" style="margin-bottom:20px">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <h3>Drop your files here</h3>
+                    <p>Images (PNG, JPG, GIF, WEBP) and Videos (MP4, MOV, AVI, WEBM)</p>
+                    <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display:none">
+                    <button class="btn btn-primary" style="margin-top:16px" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-folder-open"></i> Choose Files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Global options -->
+            <div class="card" id="globalOptions" style="display:none; margin-bottom:20px">
+                <div class="card-header">
+                    <span class="card-title">Options</span>
+                    <div class="radio-group">
+                        <label class="radio-pill">
+                            <input type="radio" name="globalFormat" value="webp" checked>
+                            WEBP
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="globalFormat" value="png">
+                            PNG
+                        </label>
+                    </div>
+                </div>
+                <div id="stickerList" class="sticker-grid"></div>
+            </div>
+
+            <!-- Process & Download -->
+            <div id="processSection" style="display:none; margin-bottom:20px">
+                <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
+                    <button class="btn btn-success btn-lg" id="processBtn">
+                        <i class="fas fa-magic"></i> Process All
+                    </button>
+                    <button class="btn btn-ghost btn-lg" id="clearBtn">
+                        <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="card" id="progressCard" style="display:none; margin-bottom:20px">
+                <div class="card-header">
+                    <span class="card-title">Processing</span>
+                    <span id="progressPercent" class="text-muted" style="color:var(--text-muted); font-size:0.9rem">0%</span>
+                </div>
+                <div class="progress-bar" style="margin-bottom:12px">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="statusLog" style="max-height:160px; overflow-y:auto; font-size:0.82rem; color:var(--text-muted)"></div>
+            </div>
+
+            <!-- Download -->
+            <div class="card" id="downloadCard" style="display:none; text-align:center">
+                <div style="font-size:2rem; color:var(--success); margin-bottom:12px"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin-bottom:8px">Processing Complete!</h3>
+                <p style="color:var(--text-muted); margin-bottom:20px" id="downloadMessage">Your stickers are ready.</p>
+                <a href="#" class="btn btn-success btn-lg" id="downloadBtn">
+                    <i class="fas fa-download"></i> Download ZIP
+                </a>
+            </div>
+
+            <!-- Preview Grid -->
+            <div class="card" id="previewCard" style="display:none">
+                <div class="card-header">
+                    <span class="card-title">Processed Stickers</span>
+                </div>
+                <div id="previewGrid" class="sticker-grid"></div>
+            </div>
+        </div>
+
+        <!-- Editor Tab -->
+        <div class="tab-content" id="tab-editor">
+            <div id="editorEmpty" class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-paint-brush"></i></div>
+                <h3>No sticker selected</h3>
+                <p>Upload stickers and click the edit button to open the editor.</p>
+            </div>
+            <div id="editorWrapper" style="display:none">
+                <div class="editor-container">
+                    <div class="editor-toolbar" id="editorToolbar">
+                        <button class="tool-btn active" data-tool="select" title="Select (V)"><i class="fas fa-mouse-pointer"></i></button>
+                        <button class="tool-btn" data-tool="crop" title="Crop (C)"><i class="fas fa-crop-alt"></i></button>
+                        <div class="separator"></div>
+                        <button class="tool-btn" data-tool="rotate-left" title="Rotate Left"><i class="fas fa-undo"></i></button>
+                        <button class="tool-btn" data-tool="rotate-right" title="Rotate Right"><i class="fas fa-redo"></i></button>
+                        <button class="tool-btn" data-tool="flip-h" title="Flip Horizontal"><i class="fas fa-arrows-alt-h"></i></button>
+                        <button class="tool-btn" data-tool="flip-v" title="Flip Vertical"><i class="fas fa-arrows-alt-v"></i></button>
+                        <div class="separator"></div>
+                        <button class="tool-btn" data-tool="text" title="Text (T)"><i class="fas fa-font"></i></button>
+                        <button class="tool-btn" data-tool="draw" title="Draw (D)"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="tool-btn" data-tool="eraser" title="Eraser (E)"><i class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="editor-canvas-area" id="canvasArea">
+                        <canvas id="editorCanvas" width="512" height="512"></canvas>
+                    </div>
+                    <div class="editor-panel" id="editorPanel">
+                        <div class="panel-section" id="adjustSection">
+                            <div class="panel-title">Adjustments</div>
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Brightness</span><span id="brightnessVal">100%</span></div>
+                                <input type="range" id="brightness" min="0" max="200" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Contrast</span><span id="contrastVal">100%</span></div>
+                                <input type="range" id="contrast" min="0" max="200" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Saturation</span><span id="saturationVal">100%</span></div>
+                                <input type="range" id="saturation" min="0" max="200" value="100">
+                            </div>
+                        </div>
+                        <div class="panel-section" id="drawSection" style="display:none">
+                            <div class="panel-title">Brush</div>
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Size</span><span id="brushSizeVal">4</span></div>
+                                <input type="range" id="brushSize" min="1" max="50" value="4">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px">
+                                <label style="font-size:0.85rem; color:var(--text-secondary)">Color</label>
+                                <input type="color" id="brushColor" value="#ffffff">
+                            </div>
+                        </div>
+                        <div class="panel-section" id="textSection" style="display:none">
+                            <div class="panel-title">Text</div>
+                            <input class="input" id="textInput" placeholder="Type text...">
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Size</span><span id="textSizeVal">32</span></div>
+                                <input type="range" id="textSize" min="8" max="128" value="32">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px">
+                                <label style="font-size:0.85rem; color:var(--text-secondary)">Color</label>
+                                <input type="color" id="textColor" value="#ffffff">
+                            </div>
+                            <div style="display:flex; gap:4px">
+                                <button class="btn btn-ghost btn-sm" id="textBold"><b>B</b></button>
+                                <button class="btn btn-ghost btn-sm" id="textItalic"><i>I</i></button>
+                            </div>
+                        </div>
+                        <div class="editor-actions">
+                            <button class="btn btn-ghost btn-sm" id="editorUndo" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i> Undo</button>
+                            <button class="btn btn-ghost btn-sm" id="editorRedo" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i> Redo</button>
+                            <div style="flex:1"></div>
+                            <button class="btn btn-primary btn-sm" id="editorSave">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pack Tab -->
+        <div class="tab-content" id="tab-pack">
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <span class="card-title">Sticker Pack</span>
+                    <div style="display:flex; gap:8px">
+                        <button class="btn btn-ghost btn-sm" id="loadPackBtn"><i class="fas fa-folder-open"></i> Load</button>
+                        <button class="btn btn-primary btn-sm" id="savePackBtn"><i class="fas fa-save"></i> Save</button>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px">
+                    <div class="input-group">
+                        <label>Pack Name</label>
+                        <input class="input" id="packName" placeholder="my_sticker_pack">
+                    </div>
+                    <div class="input-group">
+                        <label>Title</label>
+                        <input class="input" id="packTitle" placeholder="My Sticker Pack">
+                    </div>
+                </div>
+            </div>
+
+            <div id="packEmpty" class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-layer-group"></i></div>
+                <h3>No stickers in pack</h3>
+                <p>Upload and process stickers, then add them to your pack.</p>
+            </div>
+
+            <div id="packGrid" class="sticker-grid" style="display:none"></div>
+        </div>
+
+        <!-- Telegram Tab -->
+        <div class="tab-content" id="tab-telegram">
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <span class="card-title">Telegram Bot Connection</span>
+                </div>
+                <div class="input-group" style="margin-bottom:16px">
+                    <label>Bot Token</label>
+                    <div style="display:flex; gap:8px">
+                        <input class="input" id="botToken" type="password" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" style="flex:1">
+                        <button class="btn btn-primary" id="validateTokenBtn">Validate</button>
+                    </div>
+                </div>
+                <div id="botInfo" style="display:none; padding:12px; background:var(--bg-input); border-radius:var(--radius-sm); margin-bottom:16px">
+                    <div style="display:flex; align-items:center; gap:8px">
+                        <i class="fas fa-check-circle" style="color:var(--success)"></i>
+                        <span id="botName" style="font-weight:600"></span>
+                        <span id="botUsername" style="color:var(--text-muted)"></span>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom:16px">
+                    <label>Your User ID</label>
+                    <input class="input" id="userId" placeholder="Your numeric Telegram user ID">
+                    <span style="font-size:0.8rem; color:var(--text-muted)">
+                        Send /start to your bot, then check the chat for your user ID,
+                        or use <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent)">@userinfobot</a>
+                    </span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <span class="card-title">Create Sticker Set</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px">
+                    <div class="input-group">
+                        <label>Set Name (short)</label>
+                        <input class="input" id="tgSetName" placeholder="my_pack_by_bot">
+                    </div>
+                    <div class="input-group">
+                        <label>Set Title</label>
+                        <input class="input" id="tgSetTitle" placeholder="My Sticker Pack">
+                    </div>
+                </div>
+                <button class="btn btn-success" id="createSetBtn" disabled>
+                    <i class="fab fa-telegram-plane"></i> Create & Upload Sticker Set
+                </button>
+                <div id="tgUploadProgress" style="display:none; margin-top:16px">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="tgProgressFill"></div>
+                    </div>
+                    <div id="tgStatusLog" style="margin-top:8px; font-size:0.82rem; color:var(--text-muted)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-title">Settings</div>
+            <div class="input-group" style="margin-bottom:16px">
+                <label>Default Image Format</label>
+                <div class="radio-group">
+                    <label class="radio-pill">
+                        <input type="radio" name="settingsFormat" value="webp" checked> WEBP
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="settingsFormat" value="png"> PNG
+                    </label>
+                </div>
+            </div>
+            <label class="toggle" style="margin-bottom:16px">
+                <input type="checkbox" id="settingsEmojiMode">
+                <span class="toggle-track"></span>
+                <span>Custom Emoji Mode (100x100px)</span>
+            </label>
+            <label class="toggle" style="margin-bottom:16px">
+                <input type="checkbox" id="settingsAutoProcess">
+                <span class="toggle-track"></span>
+                <span>Auto-process on upload</span>
+            </label>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="closeSettingsBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emoji Picker Modal -->
+    <div class="modal-overlay" id="emojiModal">
+        <div class="modal" style="max-width:400px">
+            <div class="modal-title">Choose Emoji</div>
+            <div id="emojiGrid" style="display:grid; grid-template-columns:repeat(8,1fr); gap:4px; max-height:300px; overflow-y:auto"></div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="closeEmojiBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pack Load Modal -->
+    <div class="modal-overlay" id="packLoadModal">
+        <div class="modal">
+            <div class="modal-title">Load Pack</div>
+            <div id="packList" style="max-height:300px; overflow-y:auto"></div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="closePackLoadBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Removal Modal -->
+    <div class="modal-overlay" id="bgRemoveModal">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-title">Remove Background</div>
+
+            <div style="display:flex; gap:16px; margin-bottom:16px">
+                <!-- Preview area -->
+                <div id="bgPreviewArea" style="flex:1; min-height:200px; background:var(--checkerboard); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative">
+                    <div id="bgPreviewSpinner" style="display:none"><div class="spinner spinner-lg"></div></div>
+                    <img id="bgPreviewImg" style="max-width:100%; max-height:280px; object-fit:contain; display:none">
+                    <span id="bgPreviewPlaceholder" style="color:var(--text-muted); font-size:0.85rem">Click "Preview" to see result</span>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-bottom:12px">
+                <label>Model</label>
+                <select class="input select" id="bgModel">
+                    <option value="isnet-general-use">ISNet General Use (best quality)</option>
+                    <option value="u2net">U2Net (classic, good all-round)</option>
+                    <option value="silueta">Silueta (fast, lighter)</option>
+                </select>
+            </div>
+
+            <label class="toggle" style="margin-bottom:12px">
+                <input type="checkbox" id="bgAlphaMatting" checked>
+                <span class="toggle-track"></span>
+                <span>Alpha Matting (smoother edges)</span>
+            </label>
+
+            <div class="slider-group" style="margin-bottom:10px">
+                <div class="slider-label" style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary)">
+                    <span>Foreground Threshold</span><span id="bgFgVal">270</span>
+                </div>
+                <input type="range" id="bgFgThreshold" min="200" max="290" value="270" style="width:100%; accent-color:var(--accent)">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted)"><span>Keep less</span><span>Keep more foreground</span></div>
+            </div>
+
+            <div class="slider-group" style="margin-bottom:10px">
+                <div class="slider-label" style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary)">
+                    <span>Background Threshold</span><span id="bgBgVal">20</span>
+                </div>
+                <input type="range" id="bgBgThreshold" min="1" max="80" value="20" style="width:100%; accent-color:var(--accent)">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted)"><span>Remove less</span><span>Remove more background</span></div>
+            </div>
+
+            <div class="slider-group" style="margin-bottom:16px">
+                <div class="slider-label" style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary)">
+                    <span>Edge Erode Size</span><span id="bgErodeVal">15</span>
+                </div>
+                <input type="range" id="bgErodeSize" min="1" max="40" value="15" style="width:100%; accent-color:var(--accent)">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted)"><span>Tight edges</span><span>Wider cleanup</span></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="bgPreviewBtn"><i class="fas fa-eye"></i> Preview</button>
+                <button class="btn btn-ghost" id="closeBgModal">Cancel</button>
+                <button class="btn btn-primary" id="bgApplyBtn"><i class="fas fa-check"></i> Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/state.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/socket.js"></script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/bg-removal.js"></script>
+    <script src="/static/js/upload.js"></script>
+    <script src="/static/js/preview.js"></script>
+    <script src="/static/js/editor.js"></script>
+    <script src="/static/js/editor-tools.js"></script>
+    <script src="/static/js/emoji-picker.js"></script>
+    <script src="/static/js/pack.js"></script>
+    <script src="/static/js/telegram.js"></script>
+    <script src="/static/js/settings.js"></script>
+    <script src="/static/js/shortcuts.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

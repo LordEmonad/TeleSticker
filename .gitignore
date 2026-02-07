@@ -28,3 +28,15 @@ output/*
 
 # Visual Studio Code settings
 .vscode/
+
+# Claude Code
+.claude/
+
+# Uploaded files (temp)
+uploads/
+
+# Saved packs (user data)
+packs/
+
+# FFmpeg binaries
+ffmpeg/
