@@ -4,8 +4,6 @@ A powerful, self-hosted Telegram sticker maker that runs entirely on your machin
 
 ## Demo
 
-![Screenshot](screenshot.png)
-
 ## Features
 
 - **Drag-and-drop upload** — batch upload images and videos with instant thumbnail previews
