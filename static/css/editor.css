@@ -1,0 +1,178 @@
+/* TeleSticker v2 — Image Editor Styles */
+
+.editor-container {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+}
+
+.editor-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 8px;
+    min-width: 56px;
+}
+
+.editor-toolbar .tool-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.editor-toolbar .tool-btn:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.editor-toolbar .tool-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.editor-toolbar .separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+.editor-canvas-area {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.editor-canvas-area canvas {
+    background: var(--checkerboard);
+    box-shadow: var(--shadow-md);
+    cursor: crosshair;
+}
+
+.editor-panel {
+    width: 260px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.editor-panel .panel-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.editor-panel .panel-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.editor-panel .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.editor-panel .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.editor-panel input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.editor-panel input[type="color"] {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: none;
+    padding: 2px;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+}
+
+/* Crop overlay */
+.crop-overlay {
+    position: absolute;
+    border: 2px dashed var(--accent);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    cursor: move;
+    pointer-events: auto;
+}
+
+.crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border: 2px solid white;
+    border-radius: 50%;
+}
+
+/* Text overlay */
+.text-overlay {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    padding: 4px;
+    border: 1px dashed transparent;
+}
+
+.text-overlay.selected {
+    border-color: var(--accent);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .editor-container {
+        flex-direction: column;
+        height: auto;
+    }
+    .editor-toolbar {
+        flex-direction: row;
+        min-width: auto;
+        overflow-x: auto;
+    }
+    .editor-panel {
+        width: 100%;
+    }
+}

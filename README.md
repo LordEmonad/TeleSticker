@@ -1,105 +1,90 @@
 # TeleSticker
 
-A desktop application that simplifies Telegram sticker creation by automatically formatting images and videos to meet Telegram's requirements. Process images to PNG/WEBP (512px), convert videos to WEBM (≤3s, ≤256KB), and create sticker set icons.
+A powerful, self-hosted Telegram sticker maker that runs entirely on your machine. Upload images and videos, remove backgrounds with AI, fine-tune stickers in a built-in editor, organize packs with emoji, and push them directly to Telegram — all from a sleek dark-themed web interface.
 
-<img src="https://raw.githubusercontent.com/PupsWorldPeace/TeleSticker/master/screenshot.png" alt="TeleSticker Screenshot" width="800">
+## Demo
+
+![Screenshot](screenshot.png)
 
 ## Features
 
-- Select multiple images (PNG, JPG, etc.) and videos (MP4, MOV, etc.)
-- Process images:
-  - Resize to 512 pixels on one side (Telegram requirement)
-  - Convert to PNG or WEBP format
-- Process videos:
-  - Convert to WEBM with VP9 codec and alpha channel support
-  - Resize to 512 pixels on one side
-  - Ensure duration ≤ 3 seconds
-  - Ensure file size ≤ 256 KB
-  - Remove audio and enable looping
-- Create sticker set icons:
-  - Video icons (WEBM, 100x100px, 32KB max) for video sticker packs
-  - Static image icons (PNG/WEBP, 100x100px) for image sticker packs
-- Save all processed files to an output folder
-- Simple and user-friendly desktop interface
+- **Drag-and-drop upload** — batch upload images and videos with instant thumbnail previews
+- **AI background removal** — local, offline background removal powered by rembg with adjustable settings (model selection, alpha matting, threshold sliders, live preview)
+- **Built-in image editor** — crop, rotate, flip, brightness/contrast/saturation, freehand draw, text overlay, undo/redo history
+- **Sticker pack manager** — organize stickers into packs, drag-to-reorder, assign emoji per sticker
+- **Direct Telegram upload** — connect your bot token, create or update sticker sets, upload with one click
+- **Video & GIF support** — animated GIFs auto-detected and converted through the video pipeline (FFmpeg)
+- **Custom emoji mode** — toggle 100x100px output for Telegram custom emoji
+- **Format options** — choose WEBP or PNG per sticker, with automatic size optimization under 512KB
+- **Real-time progress** — Socket.IO powered processing with per-file status updates
+- **Dark & light themes** — glassmorphism UI, dark by default, toggle anytime
+- **Keyboard shortcuts** — Ctrl+Z/Y undo/redo, Ctrl+S save, Ctrl+Enter process, and more
+- **ZIP download** — batch download all processed stickers in one click
+
+## Quick Start
+
+### Option 1: One-Click Launch
+```
+start.bat
+```
+Double-click `start.bat` — it installs dependencies on first run and opens the app in your browser.
+
+### Option 2: Manual Setup
+```bash
+python install.py      # install dependencies (first time only)
+python run.py          # launch the app
+```
+
+### Option 3: Direct
+```bash
+pip install -r requirements.txt
+python web_app.py
+```
+
+The app opens at **http://localhost:5000**.
 
 ## Requirements
 
-- Python 3.8+
-- FFmpeg installed on your system
-- Required Python packages (installed via requirements.txt)
-
-## Installation
-
-1. Clone or download this repository
-
-2. Install FFmpeg:
-   - Windows: Download from [FFmpeg website](https://ffmpeg.org/download.html) and add to PATH
-   - macOS: `brew install ffmpeg`
-   - Linux: `sudo apt-get install ffmpeg`
-
-3. Install Python dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+- **Python 3.8+**
+- **FFmpeg** — required for video/GIF processing (auto-installed on Windows via `install.py`)
+- **rembg** (optional) — enables AI background removal. Install via `install.py` or manually with `pip install rembg onnxruntime`
 
 ## Usage
 
-1. Launch the application:
-   - Run from command line: `python app.py`
-   - For platform-specific launchers, see setup instructions above
+1. **Upload** — drag images/videos into the upload zone or click to browse
+2. **Edit** (optional) — click the pencil icon on any sticker to open the canvas editor
+3. **Remove Background** (optional) — click the wand icon on image stickers to open the background removal panel with adjustable settings
+4. **Configure** — select output format (WEBP/PNG) and sticker mode
+5. **Process** — hit Process All to convert everything to Telegram-ready specs
+6. **Preview** — inspect processed stickers at actual size on a transparency grid
+7. **Organize** — switch to the Pack tab to arrange stickers, assign emoji, and reorder by dragging
+8. **Upload to Telegram** — enter your bot token and user ID in the Telegram tab, then create your sticker set
 
-2. Select images and/or videos using the respective buttons
+## Telegram Bot Setup
 
-3. Choose options:
-   - Image format (PNG or WEBP)
-   - Whether to create a video icon (for video sticker packs)
-   - Whether to create a static image icon (for image sticker packs)
+1. Message [@BotFather](https://t.me/BotFather) on Telegram and send `/newbot` to create a bot and get your token
+2. Get your user ID from [@userinfobot](https://t.me/userinfobot)
+3. Paste both into the Telegram tab, validate your token, then create or update your sticker set
 
-4. Click the "Process Files" button
+## Sticker Specs Reference
 
-5. Once processing is complete, click "Open Output Folder"
+| Type | Format | Dimensions | Max Size | Notes |
+|------|--------|------------|----------|-------|
+| Static sticker | PNG / WEBP | 512px (one side) | 512 KB | — |
+| Video sticker | WEBM (VP9) | 512px (one side) | 256 KB | 1–3s, 30fps, no audio |
+| Custom emoji | PNG / WEBP | 100 x 100 px | 512 KB | — |
 
-6. Upload each sticker to the [@Stickers](https://t.me/Stickers) bot on Telegram
+## Keyboard Shortcuts
 
-## Telegram Sticker Requirements
-
-### Image Stickers
-- Format: PNG or WEBP
-- Size: One side exactly 512px (the other side can be smaller)
-- Must have transparent areas for better appearance
-
-### Video Stickers
-- Format: WEBM with VP9 codec
-- Size: One side exactly 512px (the other side can be smaller)
-- Duration: ≤ 3 seconds
-- File size: ≤ 256 KB
-- FPS: 30 fps
-- No audio
-- Should be looped for best experience
-
-### Sticker Set Icons
-- Static Icon (for image packs):
-  - Format: PNG or WEBP
-  - Size: Exactly 100x100px
-- Video Icon (for video packs):
-  - Format: WEBM with VP9 codec
-  - Size: Exactly 100x100px
-  - Duration: ≤ 3 seconds
-  - File size: ≤ 32 KB
-  - Must be looped
-
-## Notes
-
-- All processed files are stored in the `output` directory
-- Video processing can take time, especially for higher quality videos
-- You need to send each processed file to the @Stickers bot separately
-- For setting a sticker set icon, use the `/setpackicon` command with the @Stickers bot
-
-## Troubleshooting
-
-- If you encounter permission issues, make sure FFmpeg is properly installed and accessible
-- Ensure you're running Python from the application's directory
-- For video processing issues, check that your FFmpeg installation supports VP9 codec
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` | Undo (editor) |
+| `Ctrl+Y` | Redo (editor) |
+| `Ctrl+S` | Save pack |
+| `Ctrl+Enter` | Process all stickers |
+| `Escape` | Close modals |
+| `Delete` | Remove selected sticker |
+| `V` / `C` / `T` / `D` / `E` | Select / Crop / Text / Draw / Eraser tool |
 
 ## License
 
