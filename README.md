@@ -1,6 +1,6 @@
 # TeleSticker
 
-A powerful, self-hosted Telegram sticker maker that runs entirely on your machine. Upload images and videos, remove backgrounds with AI, fine-tune stickers in a built-in editor, organize packs with emoji, and push them directly to Telegram — all from a sleek dark-themed web interface.
+Telegram sticker maker that runs on your PC. Upload images and videos, remove backgrounds with AI, fine-tune stickers in a built-in editor, organize packs with emojis, and push them directly to Telegram. Emonad
 
 ## Demo
 
