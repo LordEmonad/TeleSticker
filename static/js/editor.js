@@ -26,6 +26,8 @@ const Editor = {
         this._setupSliders();
         this._setupCanvasEvents();
         this._setupActions();
+        this._setupEffects();
+        this._setupFilters();
     },
 
     _setupToolbar() {
@@ -39,6 +41,7 @@ const Editor = {
                 if (tool === 'rotate-right') { EditorTools.rotateRight(this); return; }
                 if (tool === 'flip-h') { EditorTools.flipH(this); return; }
                 if (tool === 'flip-v') { EditorTools.flipV(this); return; }
+                if (tool === 'image') { EditorTools.addImage(this); return; }
 
                 this._setTool(tool, btn);
             });
@@ -50,15 +53,21 @@ const Editor = {
         document.querySelectorAll('#editorToolbar .tool-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
-        // Show/hide panel sections
+        // Show/hide panel sections based on active tool
         document.getElementById('adjustSection').style.display = (tool === 'select' || tool === 'crop') ? '' : 'none';
         document.getElementById('drawSection').style.display = (tool === 'draw' || tool === 'eraser') ? '' : 'none';
         document.getElementById('textSection').style.display = tool === 'text' ? '' : 'none';
+        document.getElementById('shapeSection').style.display = tool === 'shape' ? '' : 'none';
+
+        // Effects & filters always visible when on non-drawing tools
+        const showEffects = (tool === 'select' || tool === 'crop');
+        document.getElementById('effectsSection').style.display = showEffects ? '' : 'none';
+        document.getElementById('filtersSection').style.display = showEffects ? '' : 'none';
 
         // Cursor
         if (tool === 'draw' || tool === 'eraser') this._canvas.style.cursor = 'crosshair';
         else if (tool === 'text') this._canvas.style.cursor = 'text';
-        else if (tool === 'crop') this._canvas.style.cursor = 'crosshair';
+        else if (tool === 'crop' || tool === 'shape') this._canvas.style.cursor = 'crosshair';
         else this._canvas.style.cursor = 'default';
     },
 
@@ -93,6 +102,32 @@ const Editor = {
                 document.getElementById('textSizeVal').textContent = textSize.value;
             });
         }
+
+        // Shape stroke width
+        const shapeStroke = document.getElementById('shapeStrokeWidth');
+        if (shapeStroke) {
+            shapeStroke.addEventListener('input', () => {
+                document.getElementById('shapeStrokeWidthVal').textContent = shapeStroke.value;
+            });
+        }
+
+        // Outline width
+        const outlineW = document.getElementById('outlineWidth');
+        if (outlineW) {
+            outlineW.addEventListener('input', () => {
+                document.getElementById('outlineWidthVal').textContent = outlineW.value;
+            });
+        }
+
+        // Shadow controls
+        ['shadowBlur', 'shadowX', 'shadowY'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => {
+                    document.getElementById(id + 'Val').textContent = el.value;
+                });
+            }
+        });
     },
 
     _setupCanvasEvents() {
@@ -131,7 +166,11 @@ const Editor = {
         } else if (this._tool === 'text') {
             EditorTools.placeText(this, x, y);
         } else if (this._tool === 'crop') {
+            this._drawing = true;
             EditorTools.startCrop(this, x, y);
+        } else if (this._tool === 'shape') {
+            this._drawing = true;
+            EditorTools.startShape(this, x, y);
         }
     },
 
@@ -149,6 +188,8 @@ const Editor = {
             EditorTools.erase(this, x, y);
         } else if (this._tool === 'crop') {
             EditorTools.updateCrop(this, x, y);
+        } else if (this._tool === 'shape') {
+            EditorTools.updateShape(this, x, y);
         }
 
         this._lastX = x;
@@ -160,6 +201,8 @@ const Editor = {
             this._drawing = false;
             if (this._tool === 'crop') {
                 EditorTools.finishCrop(this);
+            } else if (this._tool === 'shape') {
+                EditorTools.finishShape(this);
             } else {
                 this._saveHistory();
             }
@@ -170,6 +213,30 @@ const Editor = {
         document.getElementById('editorUndo')?.addEventListener('click', () => this.undo());
         document.getElementById('editorRedo')?.addEventListener('click', () => this.redo());
         document.getElementById('editorSave')?.addEventListener('click', () => this.save());
+    },
+
+    _setupEffects() {
+        document.getElementById('applyOutlineBtn')?.addEventListener('click', () => {
+            if (!this._image) return;
+            EditorTools.applyOutline(this);
+            Utils.showToast('Outline applied', 'success');
+        });
+        document.getElementById('applyShadowBtn')?.addEventListener('click', () => {
+            if (!this._image) return;
+            EditorTools.applyShadow(this);
+            Utils.showToast('Shadow applied', 'success');
+        });
+    },
+
+    _setupFilters() {
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!this._image) return;
+                const filterName = btn.dataset.filter;
+                EditorTools.applyFilter(this, filterName);
+                Utils.showToast(`${filterName.charAt(0).toUpperCase() + filterName.slice(1)} applied`, 'success');
+            });
+        });
     },
 
     loadSticker(fileId) {
@@ -198,7 +265,6 @@ const Editor = {
             img.crossOrigin = 'anonymous';
             img.onload = () => {
                 this._image = img;
-                // Use actual image dimensions, capped at 512 for canvas display
                 const scale = Math.min(512 / img.width, 512 / img.height, 1);
                 this._canvas.width = Math.round(img.width * scale);
                 this._canvas.height = Math.round(img.height * scale);
@@ -230,9 +296,16 @@ const Editor = {
         this._ctx.filter = 'none';
     },
 
+    _updateImageFromCanvas() {
+        const snap = document.createElement('canvas');
+        snap.width = this._canvas.width;
+        snap.height = this._canvas.height;
+        snap.getContext('2d').drawImage(this._canvas, 0, 0);
+        this._image = snap;
+    },
+
     _saveHistory() {
         const data = this._ctx.getImageData(0, 0, this._canvas.width, this._canvas.height);
-        // Remove future states if we're in the middle of history
         this._history = this._history.slice(0, this._historyIndex + 1);
         this._history.push(data);
         if (this._history.length > this._maxHistory) this._history.shift();
@@ -242,21 +315,33 @@ const Editor = {
     undo() {
         if (this._historyIndex > 0) {
             this._historyIndex--;
-            this._ctx.putImageData(this._history[this._historyIndex], 0, 0);
+            const state = this._history[this._historyIndex];
+            // Handle canvas size changes (e.g. after crop then undo)
+            if (state.width !== this._canvas.width || state.height !== this._canvas.height) {
+                this._canvas.width = state.width;
+                this._canvas.height = state.height;
+            }
+            this._ctx.putImageData(state, 0, 0);
+            this._updateImageFromCanvas();
         }
     },
 
     redo() {
         if (this._historyIndex < this._history.length - 1) {
             this._historyIndex++;
-            this._ctx.putImageData(this._history[this._historyIndex], 0, 0);
+            const state = this._history[this._historyIndex];
+            if (state.width !== this._canvas.width || state.height !== this._canvas.height) {
+                this._canvas.width = state.width;
+                this._canvas.height = state.height;
+            }
+            this._ctx.putImageData(state, 0, 0);
+            this._updateImageFromCanvas();
         }
     },
 
     save() {
         if (!this._fileId) return;
         const fileId = this._fileId;
-        // Export canvas as blob, upload to server, and update the sticker
         this._canvas.toBlob(async (blob) => {
             if (!blob) return;
             try {

@@ -142,6 +142,9 @@
                         <button class="tool-btn" data-tool="text" title="Text (T)"><i class="fas fa-font"></i></button>
                         <button class="tool-btn" data-tool="draw" title="Draw (D)"><i class="fas fa-pencil-alt"></i></button>
                         <button class="tool-btn" data-tool="eraser" title="Eraser (E)"><i class="fas fa-eraser"></i></button>
+                        <div class="separator"></div>
+                        <button class="tool-btn" data-tool="shape" title="Shape (S)"><i class="fas fa-shapes"></i></button>
+                        <button class="tool-btn" data-tool="image" title="Add Image (I)"><i class="fas fa-file-image"></i></button>
                     </div>
                     <div class="editor-canvas-area" id="canvasArea">
                         <canvas id="editorCanvas" width="512" height="512"></canvas>
@@ -184,9 +187,92 @@
                                 <label style="font-size:0.85rem; color:var(--text-secondary)">Color</label>
                                 <input type="color" id="textColor" value="#ffffff">
                             </div>
-                            <div style="display:flex; gap:4px">
+                            <div style="display:flex; gap:4px; align-items:center">
                                 <button class="btn btn-ghost btn-sm" id="textBold"><b>B</b></button>
                                 <button class="btn btn-ghost btn-sm" id="textItalic"><i>I</i></button>
+                                <label class="toggle" style="margin-left:8px; font-size:0.8rem">
+                                    <input type="checkbox" id="textStroke">
+                                    <span class="toggle-track"></span>
+                                    <span>Outline</span>
+                                </label>
+                                <input type="color" id="textStrokeColor" value="#000000" style="width:28px; height:28px; border:1px solid var(--border); border-radius:4px; padding:1px; background:none; cursor:pointer">
+                            </div>
+                        </div>
+                        <!-- Shape Section -->
+                        <div class="panel-section" id="shapeSection" style="display:none">
+                            <div class="panel-title">Shape</div>
+                            <div class="input-group" style="margin-bottom:6px">
+                                <select class="input select" id="shapeType">
+                                    <option value="rect">Rectangle</option>
+                                    <option value="circle">Circle / Ellipse</option>
+                                    <option value="line">Line</option>
+                                    <option value="arrow">Arrow</option>
+                                </select>
+                            </div>
+                            <div class="slider-group">
+                                <div class="slider-label"><span>Stroke Width</span><span id="shapeStrokeWidthVal">3</span></div>
+                                <input type="range" id="shapeStrokeWidth" min="1" max="20" value="3">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px; margin-top:6px">
+                                <label style="font-size:0.85rem; color:var(--text-secondary)">Stroke</label>
+                                <input type="color" id="shapeStrokeColor" value="#ffffff">
+                            </div>
+                            <label class="toggle" style="margin-top:6px">
+                                <input type="checkbox" id="shapeFill">
+                                <span class="toggle-track"></span>
+                                <span>Fill</span>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:10px; margin-top:6px">
+                                <label style="font-size:0.85rem; color:var(--text-secondary)">Fill Color</label>
+                                <input type="color" id="shapeFillColor" value="#7c5bf5">
+                            </div>
+                        </div>
+                        <!-- Effects Section -->
+                        <div class="panel-section" id="effectsSection">
+                            <div class="panel-title">Effects</div>
+                            <div class="effect-group">
+                                <div class="effect-label">Sticker Outline</div>
+                                <div style="display:flex; gap:8px; align-items:center">
+                                    <input type="color" id="outlineColor" value="#ffffff" style="width:32px; height:32px; border:1px solid var(--border); border-radius:4px; padding:1px; background:none; cursor:pointer">
+                                    <div class="slider-group" style="flex:1">
+                                        <div class="slider-label"><span>Width</span><span id="outlineWidthVal">4</span></div>
+                                        <input type="range" id="outlineWidth" min="1" max="20" value="4">
+                                    </div>
+                                    <button class="btn btn-ghost btn-sm" id="applyOutlineBtn">Apply</button>
+                                </div>
+                            </div>
+                            <div class="effect-group" style="margin-top:10px">
+                                <div class="effect-label">Drop Shadow</div>
+                                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px">
+                                    <input type="color" id="shadowColor" value="#000000" style="width:32px; height:32px; border:1px solid var(--border); border-radius:4px; padding:1px; background:none; cursor:pointer">
+                                    <div class="slider-group" style="flex:1">
+                                        <div class="slider-label"><span>Blur</span><span id="shadowBlurVal">6</span></div>
+                                        <input type="range" id="shadowBlur" min="0" max="30" value="6">
+                                    </div>
+                                    <button class="btn btn-ghost btn-sm" id="applyShadowBtn">Apply</button>
+                                </div>
+                                <div style="display:flex; gap:8px">
+                                    <div class="slider-group" style="flex:1">
+                                        <div class="slider-label"><span>X Offset</span><span id="shadowXVal">4</span></div>
+                                        <input type="range" id="shadowX" min="-20" max="20" value="4">
+                                    </div>
+                                    <div class="slider-group" style="flex:1">
+                                        <div class="slider-label"><span>Y Offset</span><span id="shadowYVal">4</span></div>
+                                        <input type="range" id="shadowY" min="-20" max="20" value="4">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Filters Section -->
+                        <div class="panel-section" id="filtersSection">
+                            <div class="panel-title">Filters</div>
+                            <div class="filter-grid">
+                                <button class="btn btn-ghost btn-sm" data-filter="blur"><i class="fas fa-tint"></i> Blur</button>
+                                <button class="btn btn-ghost btn-sm" data-filter="sharpen"><i class="fas fa-adjust"></i> Sharpen</button>
+                                <button class="btn btn-ghost btn-sm" data-filter="glow"><i class="fas fa-sun"></i> Glow</button>
+                                <button class="btn btn-ghost btn-sm" data-filter="pixelate"><i class="fas fa-th"></i> Pixelate</button>
+                                <button class="btn btn-ghost btn-sm" data-filter="invert"><i class="fas fa-exchange-alt"></i> Invert</button>
+                                <button class="btn btn-ghost btn-sm" data-filter="sepia"><i class="fas fa-image"></i> Sepia</button>
                             </div>
                         </div>
                         <div class="editor-actions">

@@ -65,6 +65,12 @@ const Shortcuts = {
             if (e.key === 'e' || e.key === 'E') {
                 document.querySelector('[data-tool="eraser"]')?.click();
             }
+            if (e.key === 's' && !ctrl) {
+                document.querySelector('[data-tool="shape"]')?.click();
+            }
+            if (e.key === 'i' || e.key === 'I') {
+                document.querySelector('[data-tool="image"]')?.click();
+            }
         });
     },
 };

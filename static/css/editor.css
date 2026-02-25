@@ -161,6 +161,37 @@
     border-color: var(--accent);
 }
 
+/* Effects groups */
+.effect-group {
+    padding: 8px 0;
+}
+
+.effect-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+/* Filter button grid */
+.filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.filter-grid .btn {
+    font-size: 0.75rem;
+    padding: 7px 8px;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.filter-grid .btn i {
+    width: 14px;
+    text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     .editor-container {
