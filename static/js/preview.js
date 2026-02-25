@@ -15,14 +15,16 @@ const Preview = {
             const ext = f.processed.split('.').pop().toLowerCase();
             const isVideo = ext === 'webm';
 
+            const safeName = Utils.escapeHtml(f.processed);
+            const safeSrc = Utils.escapeHtml(`/api/preview/${f.processed}`);
             card.innerHTML = `
                 <div class="thumb-container checkerboard">
                     ${isVideo
-                        ? `<video src="/api/preview/${f.processed}" autoplay loop muted playsinline style="max-width:100%;max-height:100%"></video>`
-                        : `<img src="/api/preview/${f.processed}" alt="${f.processed}">`}
+                        ? `<video src="${safeSrc}" autoplay loop muted playsinline style="max-width:100%;max-height:100%"></video>`
+                        : `<img src="${safeSrc}" alt="${safeName}">`}
                 </div>
                 <div class="card-info">
-                    <div class="filename">${f.processed}</div>
+                    <div class="filename">${safeName}</div>
                     <div class="meta">
                         <span>${isVideo ? 'VIDEO' : 'IMAGE'}</span>
                         <span>${Utils.formatSize(f.size)}</span>
