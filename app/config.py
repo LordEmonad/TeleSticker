@@ -36,4 +36,4 @@ VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'wmv', 'webm', 'mkv'}
 ANIMATED_EXTENSIONS = {'gif'}
 
 # Flask config
-SECRET_KEY = 'telesticker_secret_key_v2'
+SECRET_KEY = os.environ.get('TELESTICKER_SECRET_KEY') or os.urandom(32).hex()

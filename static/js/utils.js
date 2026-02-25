@@ -1,6 +1,12 @@
 /* TeleSticker v2 — Shared utility helpers */
 
 const Utils = {
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    },
+
     formatSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;

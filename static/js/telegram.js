@@ -99,7 +99,9 @@ const Telegram = {
         document.getElementById('createSetBtn').disabled = true;
 
         const addLog = (msg) => {
-            logEl.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+            const div = document.createElement('div');
+            div.textContent = `${new Date().toLocaleTimeString()}: ${msg}`;
+            logEl.appendChild(div);
             logEl.scrollTop = logEl.scrollHeight;
         };
 

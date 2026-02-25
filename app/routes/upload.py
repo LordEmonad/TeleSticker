@@ -125,9 +125,16 @@ def process_files():
             sticker['output_format'] = fc.get('output_format', sticker.get('output_format', 'webp'))
             sticker['mode'] = fc.get('mode', sticker.get('mode', 'sticker'))
 
+            # Determine best source: edited > bg_removed > original upload
+            source_path = sticker['upload_path']
+            if sticker.get('edited_path') and os.path.exists(sticker['edited_path']):
+                source_path = sticker['edited_path']
+            elif sticker.get('use_bg_removed') and sticker.get('bg_removed_path') and os.path.exists(sticker['bg_removed_path']):
+                source_path = sticker['bg_removed_path']
+
             configs.append({
                 'file_id': file_id,
-                'upload_path': sticker['upload_path'],
+                'upload_path': source_path,
                 'file_type': sticker['file_type'],
                 'output_format': sticker['output_format'],
                 'mode': sticker['mode'],
@@ -138,7 +145,7 @@ def process_files():
 
         # Get requesting client's SID for targeted emit
         sid = request.args.get('sid') or data.get('sid')
-        job_id = submit_job(configs, socketio, sid=sid)
+        job_id = submit_job(configs, socketio, sid=sid, sticker_store=_stickers)
 
         return jsonify({'job_id': job_id, 'message': f'Processing {len(configs)} files'})
 
@@ -167,6 +174,34 @@ def list_stickers():
     return jsonify({'stickers': list(_stickers.values())})
 
 
+@upload_bp.route('/sticker/<file_id>/save-edit', methods=['POST'])
+def save_edit(file_id):
+    """Save an edited image blob back to the server, replacing the upload."""
+    sticker = _stickers.get(file_id)
+    if not sticker:
+        return jsonify({'error': 'Sticker not found'}), 404
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    edited_name = f'{file_id}_edited.png'
+    edited_path = os.path.join(UPLOAD_FOLDER, edited_name)
+    file.save(edited_path)
+
+    sticker['edited_path'] = edited_path
+    sticker['has_transparency'] = True  # canvas exports always have alpha
+    thumb_name = f'{file_id}_edited_thumb.webp'
+    thumb_path = os.path.join(UPLOAD_FOLDER, thumb_name)
+    if generate_thumbnail(edited_path, thumb_path):
+        sticker['thumbnail_url'] = f'/api/preview/{thumb_name}'
+
+    return jsonify({
+        'ok': True,
+        'thumbnail_url': sticker.get('thumbnail_url'),
+    })
+
+
 @upload_bp.route('/sticker/<file_id>', methods=['DELETE'])
 def delete_sticker(file_id):
     """Remove an uploaded sticker."""
@@ -174,7 +209,7 @@ def delete_sticker(file_id):
     if not sticker:
         return jsonify({'error': 'Not found'}), 404
     # Clean up files
-    for key in ('upload_path', 'processed_path', 'bg_removed_path'):
+    for key in ('upload_path', 'processed_path', 'bg_removed_path', 'edited_path'):
         path = sticker.get(key)
         if path and os.path.exists(path):
             try:
