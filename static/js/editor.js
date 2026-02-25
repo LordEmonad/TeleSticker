@@ -264,6 +264,7 @@ const Editor = {
                 formData.append('file', blob, 'edited.png');
                 const res = await fetch(`/api/sticker/${fileId}/save-edit`, {
                     method: 'POST',
+                    headers: { 'X-TeleSticker-CSRF': '1' },
                     body: formData,
                 });
                 const data = await res.json();

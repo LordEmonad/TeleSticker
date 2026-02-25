@@ -6,7 +6,7 @@ from app.config import UPLOAD_FOLDER
 from app.services.background_remover import (
     is_available, remove_background, remove_background_preview, get_available_models
 )
-from app.routes.upload import get_sticker
+from app.routes.upload import get_sticker, _lock as sticker_lock
 
 editor_bp = Blueprint('editor', __name__, url_prefix='/api/editor')
 
@@ -45,8 +45,9 @@ def remove_bg():
         erode_size=erode_size,
     )
     if result:
-        sticker['bg_removed_path'] = result
-        sticker['use_bg_removed'] = True
+        with sticker_lock:
+            sticker['bg_removed_path'] = result
+            sticker['use_bg_removed'] = True
         thumb_name = f'{file_id}_nobg.png'
         return jsonify({
             'ok': True,

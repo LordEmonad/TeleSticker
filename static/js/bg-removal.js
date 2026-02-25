@@ -96,7 +96,7 @@ const BgRemoval = {
             if (result.ok) {
                 const sticker = AppState.get('stickers')[this._fileId];
                 if (sticker) {
-                    sticker.bg_removed_path = true;
+                    sticker.bg_removed_path = result.preview_url;
                     sticker.use_bg_removed = true;
                     sticker.thumbnail_url = result.preview_url;
                     sticker.has_transparency = true;

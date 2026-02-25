@@ -2,6 +2,8 @@
 
 import os
 import uuid
+import logging
+import threading
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER
@@ -11,18 +13,24 @@ from app.services.video_processor import generate_video_thumbnail, probe_video
 from app.services.job_queue import submit_job, get_job, cancel_job
 from app.extensions import socketio
 
+logger = logging.getLogger('telesticker.upload')
+
 upload_bp = Blueprint('upload', __name__, url_prefix='/api')
 
-# In-memory sticker store (keyed by file_id)
+# In-memory sticker store (keyed by file_id), guarded by _lock
 _stickers = {}
+_lock = threading.Lock()
 
 
 def get_sticker(file_id):
-    return _stickers.get(file_id)
+    with _lock:
+        s = _stickers.get(file_id)
+        return s
 
 
 def get_all_stickers():
-    return _stickers
+    with _lock:
+        return dict(_stickers)
 
 
 @upload_bp.route('/upload', methods=['POST'])
@@ -33,6 +41,7 @@ def upload_files():
         os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
         results = []
+        rejected = []
 
         for key in request.files:
             files = request.files.getlist(key)
@@ -43,6 +52,10 @@ def upload_files():
                 filename = secure_filename(file.filename)
                 valid, warnings = validate_file(filename)
                 if not valid:
+                    rejected.append({
+                        'filename': file.filename,
+                        'reason': '; '.join(warnings) if warnings else 'Unsupported file type',
+                    })
                     continue
 
                 file_id = str(uuid.uuid4())
@@ -92,13 +105,20 @@ def upload_files():
                     'mode': 'sticker',
                     'status': 'uploaded',
                 }
-                _stickers[file_id] = sticker_data
+                with _lock:
+                    _stickers[file_id] = sticker_data
                 results.append(sticker_data)
 
         if not results:
-            return jsonify({'error': 'No valid files uploaded'}), 400
+            return jsonify({
+                'error': 'No valid files uploaded',
+                'rejected': rejected,
+            }), 400
 
-        return jsonify({'files': results})
+        response = {'files': results}
+        if rejected:
+            response['rejected'] = rejected
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -115,37 +135,38 @@ def process_files():
             return jsonify({'error': 'No files specified'}), 400
 
         configs = []
-        for fc in file_configs:
-            file_id = fc.get('file_id')
-            sticker = _stickers.get(file_id)
-            if not sticker:
-                continue
+        with _lock:
+            for fc in file_configs:
+                file_id = fc.get('file_id')
+                sticker = _stickers.get(file_id)
+                if not sticker:
+                    continue
 
-            # Apply per-file overrides
-            sticker['output_format'] = fc.get('output_format', sticker.get('output_format', 'webp'))
-            sticker['mode'] = fc.get('mode', sticker.get('mode', 'sticker'))
+                # Apply per-file overrides
+                sticker['output_format'] = fc.get('output_format', sticker.get('output_format', 'webp'))
+                sticker['mode'] = fc.get('mode', sticker.get('mode', 'sticker'))
 
-            # Determine best source: edited > bg_removed > original upload
-            source_path = sticker['upload_path']
-            if sticker.get('edited_path') and os.path.exists(sticker['edited_path']):
-                source_path = sticker['edited_path']
-            elif sticker.get('use_bg_removed') and sticker.get('bg_removed_path') and os.path.exists(sticker['bg_removed_path']):
-                source_path = sticker['bg_removed_path']
+                # Determine best source: edited > bg_removed > original upload
+                source_path = sticker['upload_path']
+                if sticker.get('edited_path') and os.path.exists(sticker['edited_path']):
+                    source_path = sticker['edited_path']
+                elif sticker.get('use_bg_removed') and sticker.get('bg_removed_path') and os.path.exists(sticker['bg_removed_path']):
+                    source_path = sticker['bg_removed_path']
 
-            configs.append({
-                'file_id': file_id,
-                'upload_path': source_path,
-                'file_type': sticker['file_type'],
-                'output_format': sticker['output_format'],
-                'mode': sticker['mode'],
-            })
+                configs.append({
+                    'file_id': file_id,
+                    'upload_path': source_path,
+                    'file_type': sticker['file_type'],
+                    'output_format': sticker['output_format'],
+                    'mode': sticker['mode'],
+                })
 
         if not configs:
             return jsonify({'error': 'No valid files to process'}), 400
 
         # Get requesting client's SID for targeted emit
         sid = request.args.get('sid') or data.get('sid')
-        job_id = submit_job(configs, socketio, sid=sid, sticker_store=_stickers)
+        job_id = submit_job(configs, socketio, sid=sid, sticker_store=_stickers, sticker_lock=_lock)
 
         return jsonify({'job_id': job_id, 'message': f'Processing {len(configs)} files'})
 
@@ -171,13 +192,15 @@ def cancel(job_id):
 @upload_bp.route('/stickers', methods=['GET'])
 def list_stickers():
     """Return all uploaded stickers."""
-    return jsonify({'stickers': list(_stickers.values())})
+    with _lock:
+        return jsonify({'stickers': list(_stickers.values())})
 
 
 @upload_bp.route('/sticker/<file_id>/save-edit', methods=['POST'])
 def save_edit(file_id):
     """Save an edited image blob back to the server, replacing the upload."""
-    sticker = _stickers.get(file_id)
+    with _lock:
+        sticker = _stickers.get(file_id)
     if not sticker:
         return jsonify({'error': 'Sticker not found'}), 404
 
@@ -189,12 +212,17 @@ def save_edit(file_id):
     edited_path = os.path.join(UPLOAD_FOLDER, edited_name)
     file.save(edited_path)
 
-    sticker['edited_path'] = edited_path
-    sticker['has_transparency'] = True  # canvas exports always have alpha
     thumb_name = f'{file_id}_edited_thumb.webp'
     thumb_path = os.path.join(UPLOAD_FOLDER, thumb_name)
+    thumb_url = None
     if generate_thumbnail(edited_path, thumb_path):
-        sticker['thumbnail_url'] = f'/api/preview/{thumb_name}'
+        thumb_url = f'/api/preview/{thumb_name}'
+
+    with _lock:
+        sticker['edited_path'] = edited_path
+        sticker['has_transparency'] = True  # canvas exports always have alpha
+        if thumb_url:
+            sticker['thumbnail_url'] = thumb_url
 
     return jsonify({
         'ok': True,
@@ -205,7 +233,8 @@ def save_edit(file_id):
 @upload_bp.route('/sticker/<file_id>', methods=['DELETE'])
 def delete_sticker(file_id):
     """Remove an uploaded sticker."""
-    sticker = _stickers.pop(file_id, None)
+    with _lock:
+        sticker = _stickers.pop(file_id, None)
     if not sticker:
         return jsonify({'error': 'Not found'}), 404
     # Clean up files
@@ -214,6 +243,6 @@ def delete_sticker(file_id):
         if path and os.path.exists(path):
             try:
                 os.remove(path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f'Failed to delete {path}: {e}')
     return jsonify({'ok': True})

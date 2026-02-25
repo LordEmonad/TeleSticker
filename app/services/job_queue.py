@@ -5,6 +5,7 @@ import time
 import uuid
 import logging
 import zipfile
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from app.config import MAX_WORKERS, OUTPUT_FOLDER
 from app.models.job import Job
@@ -17,28 +18,63 @@ logger = logging.getLogger('telesticker.jobs')
 # Global state
 _executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 _jobs = {}
+_job_lock = threading.Lock()
+
+# Jobs older than this (seconds) are eligible for cleanup
+_JOB_TTL = 3600  # 1 hour
+_MAX_JOBS = 200
+
+
+def _cleanup_old_jobs():
+    """Remove completed/cancelled/errored jobs older than _JOB_TTL."""
+    now = time.time()
+    terminal = {'complete', 'error', 'cancelled'}
+    with _job_lock:
+        to_remove = [
+            jid for jid, job in _jobs.items()
+            if job.status in terminal and hasattr(job, '_finished_at') and (now - job._finished_at) > _JOB_TTL
+        ]
+        for jid in to_remove:
+            del _jobs[jid]
+        # Hard cap: if still over limit, drop oldest terminal jobs
+        if len(_jobs) > _MAX_JOBS:
+            terminal_jobs = sorted(
+                [(jid, j) for jid, j in _jobs.items() if j.status in terminal],
+                key=lambda x: getattr(x[1], '_finished_at', 0),
+            )
+            while len(_jobs) > _MAX_JOBS and terminal_jobs:
+                jid, _ = terminal_jobs.pop(0)
+                del _jobs[jid]
+    if to_remove:
+        logger.info(f'Cleaned up {len(to_remove)} old jobs')
 
 
 def get_job(job_id):
-    return _jobs.get(job_id)
+    with _job_lock:
+        return _jobs.get(job_id)
 
 
 def cancel_job(job_id):
-    job = _jobs.get(job_id)
+    with _job_lock:
+        job = _jobs.get(job_id)
     if job:
         job.cancelled = True
         return True
     return False
 
 
-def submit_job(files_config, socketio, sid=None, sticker_store=None):
+def submit_job(files_config, socketio, sid=None, sticker_store=None, sticker_lock=None):
     """Submit a processing job. files_config is a list of dicts with:
     - file_id, upload_path, file_type, output_format, mode
     sticker_store: optional dict to update processed_path on each sticker
+    sticker_lock: threading.Lock to guard sticker_store writes
     """
     job_id = str(uuid.uuid4())
     job = Job(job_id=job_id, total_files=len(files_config))
-    _jobs[job_id] = job
+    with _job_lock:
+        _jobs[job_id] = job
+    # Opportunistic cleanup of old jobs
+    _cleanup_old_jobs()
 
     def emit(event, data):
         if sid:
@@ -58,6 +94,7 @@ def submit_job(files_config, socketio, sid=None, sticker_store=None):
         for i, fc in enumerate(files_config):
             if job.cancelled:
                 job.status = 'cancelled'
+                job._finished_at = time.time()
                 emit('processing_update', {
                     'job_id': job_id, 'status': 'cancelled',
                     'message': 'Processing cancelled', 'progress': job.progress
@@ -110,8 +147,13 @@ def submit_job(files_config, socketio, sid=None, sticker_store=None):
                     })
                     # Update sticker store so Telegram upload uses processed file
                     if sticker_store and file_id in sticker_store:
-                        sticker_store[file_id]['processed_path'] = out_path
-                        sticker_store[file_id]['status'] = 'processed'
+                        if sticker_lock:
+                            with sticker_lock:
+                                sticker_store[file_id]['processed_path'] = out_path
+                                sticker_store[file_id]['status'] = 'processed'
+                        else:
+                            sticker_store[file_id]['processed_path'] = out_path
+                            sticker_store[file_id]['status'] = 'processed'
                     emit('file_processed', {
                         'job_id': job_id,
                         'file_id': file_id,
@@ -148,6 +190,7 @@ def submit_job(files_config, socketio, sid=None, sticker_store=None):
                     zf.write(fr['path'], fr['processed'])
             job.zip_path = zip_path
             job.status = 'complete'
+            job._finished_at = time.time()
 
             emit('processing_complete', {
                 'job_id': job_id,
@@ -159,6 +202,7 @@ def submit_job(files_config, socketio, sid=None, sticker_store=None):
             })
         else:
             job.status = 'error'
+            job._finished_at = time.time()
             job.error_message = 'No files were successfully processed.'
             emit('processing_complete', {
                 'job_id': job_id,

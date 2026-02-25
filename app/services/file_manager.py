@@ -8,6 +8,17 @@ from app.config import UPLOAD_FOLDER, OUTPUT_FOLDER, CLEANUP_INTERVAL_HOURS, FIL
 
 logger = logging.getLogger('telesticker.files')
 
+# Reference to sticker store + lock, set by init_sticker_cleanup()
+_sticker_store = None
+_sticker_lock = None
+
+
+def init_sticker_cleanup(store, lock):
+    """Register the in-memory sticker store so cleanup can evict stale entries."""
+    global _sticker_store, _sticker_lock
+    _sticker_store = store
+    _sticker_lock = lock
+
 
 def ensure_dirs():
     """Create required directories if they don't exist."""
@@ -32,6 +43,19 @@ def cleanup_old_files():
                     count += 1
             except Exception as e:
                 logger.warning(f'Failed to remove {fpath}: {e}')
+
+    # Evict sticker entries whose upload file no longer exists on disk
+    if _sticker_store is not None and _sticker_lock is not None:
+        stale_ids = []
+        with _sticker_lock:
+            for fid, s in _sticker_store.items():
+                upload = s.get('upload_path', '')
+                if upload and not os.path.exists(upload):
+                    stale_ids.append(fid)
+            for fid in stale_ids:
+                del _sticker_store[fid]
+        if stale_ids:
+            logger.info(f'Evicted {len(stale_ids)} stale sticker entries')
 
     if count:
         logger.info(f'Cleaned up {count} old files')

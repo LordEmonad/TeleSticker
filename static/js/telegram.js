@@ -3,8 +3,8 @@
 const Telegram = {
     init() {
         // Load saved token
-        const savedToken = localStorage.getItem('telesticker-bot-token') || '';
-        const savedUserId = localStorage.getItem('telesticker-user-id') || '';
+        const savedToken = sessionStorage.getItem('telesticker-bot-token') || '';
+        const savedUserId = sessionStorage.getItem('telesticker-user-id') || '';
         document.getElementById('botToken').value = savedToken;
         document.getElementById('userId').value = savedUserId;
 
@@ -18,7 +18,7 @@ const Telegram = {
         document.getElementById('userId')?.addEventListener('change', (e) => {
             const val = e.target.value.trim();
             AppState.set('telegram.userId', val);
-            localStorage.setItem('telesticker-user-id', val);
+            sessionStorage.setItem('telesticker-user-id', val);
             this._updateCreateBtn();
         });
 
@@ -39,7 +39,7 @@ const Telegram = {
                 AppState.set('telegram.token', token);
                 AppState.set('telegram.botInfo', data.bot);
                 AppState.set('telegram.validated', true);
-                localStorage.setItem('telesticker-bot-token', token);
+                sessionStorage.setItem('telesticker-bot-token', token);
 
                 document.getElementById('botInfo').style.display = '';
                 document.getElementById('botName').textContent = data.bot.first_name;
@@ -118,9 +118,15 @@ const Telegram = {
                 if (result.errors && result.errors.length > 0) {
                     result.errors.forEach(e => addLog(`Warning: ${e}`));
                 }
+                if (result.skipped && result.skipped.length > 0) {
+                    result.skipped.forEach(s => addLog(`Skipped: ${s.reason}`));
+                }
                 Utils.showToast('Sticker set created on Telegram!', 'success');
             } else {
                 addLog(`Error: ${result.error}`);
+                if (result.skipped && result.skipped.length > 0) {
+                    result.skipped.forEach(s => addLog(`Skipped: ${s.reason}`));
+                }
                 Utils.showToast(`Failed: ${result.error}`, 'error');
             }
         } catch (err) {

@@ -181,12 +181,23 @@ const Pack = {
         AppState.set('pack.pack_id', pack.pack_id);
         AppState.set('pack.name', pack.name);
         AppState.set('pack.title', pack.title);
-        AppState.set('pack.sticker_ids', pack.sticker_ids || []);
+
+        // Filter out sticker IDs that no longer exist in the current session
+        const allStickers = AppState.get('stickers') || {};
+        const ids = pack.sticker_ids || [];
+        const validIds = ids.filter(id => !!allStickers[id]);
+        const missingCount = ids.length - validIds.length;
+
+        AppState.set('pack.sticker_ids', validIds);
 
         document.getElementById('packName').value = pack.name;
         document.getElementById('packTitle').value = pack.title;
 
         document.getElementById('packLoadModal').classList.remove('active');
-        Utils.showToast(`Loaded: ${pack.title}`, 'success');
+        if (missingCount > 0) {
+            Utils.showToast(`Loaded: ${pack.title} (${missingCount} sticker(s) no longer available)`, 'warning');
+        } else {
+            Utils.showToast(`Loaded: ${pack.title}`, 'success');
+        }
     },
 };

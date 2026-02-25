@@ -2,6 +2,13 @@
 
 const API = {
     async _fetch(url, options = {}) {
+        // Inject CSRF header on all state-changing requests
+        options.headers = options.headers || {};
+        if (options.headers instanceof Headers) {
+            options.headers.set('X-TeleSticker-CSRF', '1');
+        } else {
+            options.headers['X-TeleSticker-CSRF'] = '1';
+        }
         try {
             const res = await fetch(url, options);
             const data = await res.json();

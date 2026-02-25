@@ -61,6 +61,10 @@ const Upload = {
                 }
                 Utils.showToast(`${data.files.length} file(s) uploaded`, 'success');
             }
+            if (data.rejected && data.rejected.length > 0) {
+                const names = data.rejected.map(r => `${r.filename}: ${r.reason}`).join(', ');
+                Utils.showToast(`${data.rejected.length} file(s) skipped: ${names}`, 'warning');
+            }
         } catch (err) {
             Utils.showToast(`Upload failed: ${err.message}`, 'error');
         }
