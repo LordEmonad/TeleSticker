@@ -191,23 +191,21 @@ const Editor = {
         this._history = [];
         this._historyIndex = -1;
 
-        // Load image
-        const src = sticker.thumbnail_url || sticker._clientThumb;
-        if (src && sticker.file_type === 'image') {
+        // Load full-resolution image from server (not thumbnail)
+        const fullSrc = `/api/preview/full/${fileId}`;
+        if (sticker.file_type === 'image') {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
                 this._image = img;
-                this._canvas.width = Math.min(img.width, 512);
-                this._canvas.height = Math.min(img.height, 512);
-                // Fit image
+                // Use actual image dimensions, capped at 512 for canvas display
                 const scale = Math.min(512 / img.width, 512 / img.height, 1);
                 this._canvas.width = Math.round(img.width * scale);
                 this._canvas.height = Math.round(img.height * scale);
                 this._redraw();
                 this._saveHistory();
             };
-            img.src = src;
+            img.src = fullSrc;
         } else {
             this._image = null;
             this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
@@ -257,17 +255,31 @@ const Editor = {
 
     save() {
         if (!this._fileId) return;
-        // Export canvas as blob and update the sticker's thumbnail
-        this._canvas.toBlob((blob) => {
+        const fileId = this._fileId;
+        // Export canvas as blob, upload to server, and update the sticker
+        this._canvas.toBlob(async (blob) => {
             if (!blob) return;
-            const url = URL.createObjectURL(blob);
-            const sticker = AppState.get('stickers')[this._fileId];
-            if (sticker) {
-                sticker._clientThumb = url;
-                sticker.thumbnail_url = null; // prefer client thumb
-                sticker._editedBlob = blob;
-                AppState.addSticker(sticker);
+            try {
+                const formData = new FormData();
+                formData.append('file', blob, 'edited.png');
+                const res = await fetch(`/api/sticker/${fileId}/save-edit`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Save failed');
+
+                const sticker = AppState.get('stickers')[fileId];
+                if (sticker) {
+                    if (data.thumbnail_url) {
+                        sticker.thumbnail_url = data.thumbnail_url;
+                    }
+                    sticker._clientThumb = URL.createObjectURL(blob);
+                    AppState.addSticker(sticker);
+                }
                 Utils.showToast('Saved to sticker', 'success');
+            } catch (err) {
+                Utils.showToast(`Save failed: ${err.message}`, 'error');
             }
         }, 'image/png');
     },

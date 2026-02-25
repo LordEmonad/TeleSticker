@@ -94,9 +94,11 @@ const Upload = {
         const card = Utils.el('div', { class: 'sticker-card' });
         card.dataset.fileId = sticker.file_id;
 
+        const safeName = Utils.escapeHtml(sticker.original_filename);
+        const safeThumb = Utils.escapeHtml(thumbSrc);
         card.innerHTML = `
             <div class="thumb-container">
-                ${thumbSrc ? `<img src="${thumbSrc}" alt="${sticker.original_filename}">` : `<i class="${Utils.getFileIcon(sticker.file_type)}" style="font-size:2rem; color:var(--text-muted)"></i>`}
+                ${thumbSrc ? `<img src="${safeThumb}" alt="${safeName}">` : `<i class="${Utils.getFileIcon(sticker.file_type)}" style="font-size:2rem; color:var(--text-muted)"></i>`}
             </div>
             <div class="card-actions">
                 <button class="btn-icon" data-action="edit" title="Edit"><i class="fas fa-edit"></i></button>
@@ -104,7 +106,7 @@ const Upload = {
                 <button class="btn-icon" data-action="delete" title="Remove"><i class="fas fa-times"></i></button>
             </div>
             <div class="card-info">
-                <div class="filename">${sticker.original_filename}</div>
+                <div class="filename">${safeName}</div>
                 <div class="meta">
                     ${Utils.getTypeBadge(sticker.file_type)}
                     <span>${Utils.formatSize(sticker.file_size)}</span>
@@ -218,6 +220,13 @@ const Upload = {
     onFileProcessed(data) {
         if (data.status === 'success') {
             this._addLog(`Processed: ${data.processed_name} (${Utils.formatSize(data.size)})`);
+            // Update sticker with processed path so Telegram upload works
+            const sticker = AppState.get('stickers')[data.file_id];
+            if (sticker) {
+                sticker.processed_path = data.processed_path;
+                sticker.status = 'processed';
+                AppState.addSticker(sticker);
+            }
         } else {
             this._addLog(`Error: ${data.message || 'Failed'}`);
         }

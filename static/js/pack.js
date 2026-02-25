@@ -43,17 +43,20 @@ const Pack = {
             const thumbSrc = sticker.thumbnail_url || sticker._clientThumb || '';
             const emoji = sticker.emoji || '🎨';
 
+            const safeName = Utils.escapeHtml(sticker.original_filename);
+            const safeThumb = Utils.escapeHtml(thumbSrc);
+            const safeEmoji = Utils.escapeHtml(emoji);
             card.innerHTML = `
                 <div class="thumb-container">
-                    ${thumbSrc ? `<img src="${thumbSrc}" alt="">` : `<i class="fas fa-image" style="font-size:2rem; color:var(--text-muted)"></i>`}
+                    ${thumbSrc ? `<img src="${safeThumb}" alt="">` : `<i class="fas fa-image" style="font-size:2rem; color:var(--text-muted)"></i>`}
                 </div>
                 <div class="card-actions">
                     <button class="btn-icon" data-action="remove" title="Remove from pack"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="card-info">
-                    <div class="filename">${sticker.original_filename}</div>
+                    <div class="filename">${safeName}</div>
                     <div class="meta">
-                        <span class="emoji-tag" data-action="emoji" title="Change emoji">${emoji}</span>
+                        <span class="emoji-tag" data-action="emoji" title="Change emoji">${safeEmoji}</span>
                         <span>#${index + 1}</span>
                     </div>
                 </div>
@@ -146,11 +149,13 @@ const Pack = {
                         style: { padding: '12px', marginBottom: '8px', cursor: 'pointer' },
                         onClick: () => this.loadPack(pack),
                     });
+                    const safeTitle = Utils.escapeHtml(pack.title);
+                    const safePackName = Utils.escapeHtml(pack.name);
                     item.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center">
                             <div>
-                                <div style="font-weight:600">${pack.title}</div>
-                                <div style="font-size:0.8rem; color:var(--text-muted)">${pack.name} &middot; ${pack.sticker_ids?.length || 0} stickers</div>
+                                <div style="font-weight:600">${safeTitle}</div>
+                                <div style="font-size:0.8rem; color:var(--text-muted)">${safePackName} &middot; ${pack.sticker_ids?.length || 0} stickers</div>
                             </div>
                             <button class="btn btn-ghost btn-sm" data-delete title="Delete"><i class="fas fa-trash"></i></button>
                         </div>

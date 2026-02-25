@@ -31,9 +31,10 @@ def cancel_job(job_id):
     return False
 
 
-def submit_job(files_config, socketio, sid=None):
+def submit_job(files_config, socketio, sid=None, sticker_store=None):
     """Submit a processing job. files_config is a list of dicts with:
     - file_id, upload_path, file_type, output_format, mode
+    sticker_store: optional dict to update processed_path on each sticker
     """
     job_id = str(uuid.uuid4())
     job = Job(job_id=job_id, total_files=len(files_config))
@@ -99,19 +100,25 @@ def submit_job(files_config, socketio, sid=None):
                     success = resize_image(input_path, out_path, output_format, is_icon=is_icon, is_emoji=is_emoji)
 
                 if success:
+                    out_size = os.path.getsize(out_path)
                     job.file_results.append({
                         'file_id': file_id,
                         'original': original_name,
                         'processed': out_name,
                         'path': out_path,
-                        'size': os.path.getsize(out_path),
+                        'size': out_size,
                     })
+                    # Update sticker store so Telegram upload uses processed file
+                    if sticker_store and file_id in sticker_store:
+                        sticker_store[file_id]['processed_path'] = out_path
+                        sticker_store[file_id]['status'] = 'processed'
                     emit('file_processed', {
                         'job_id': job_id,
                         'file_id': file_id,
                         'status': 'success',
                         'processed_name': out_name,
-                        'size': os.path.getsize(out_path),
+                        'processed_path': out_path,
+                        'size': out_size,
                     })
                 else:
                     emit('file_processed', {
