@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>EmoSticker</title>
+<link rel="icon" href="/web/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/web/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <a class="brand" href="/" title="EmoSticker">
+      <span class="brand-mark"><img src="/web/icon.svg" alt=""></span>
+      <span class="brand-word">Emo<b>Sticker</b></span>
+    </a>
+    <div class="pack-bar">
+      <button class="pack-pick" id="packPick" title="Switch pack">
+        <span class="pack-pick-title" id="packPickTitle">My stickers</span>
+        <span class="chev"></span>
+      </button>
+      <span class="pack-count" id="packCount"></span>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="botChip" title="Telegram bot"><span class="dot"></span><span id="botChipText">Connect a bot</span></button>
+      <button class="btn ghost" id="addBtn" title="Add pictures or videos (or drop them anywhere)">
+        <svg class="i"><use href="/web/icons.svg#plus"/></svg><span>Add</span>
+      </button>
+      <div class="menu-wrap">
+        <button class="btn ghost" id="exportBtn"><svg class="i"><use href="/web/icons.svg#download"/></svg><span>Export</span><span class="chev"></span></button>
+        <div class="menu" id="exportMenu" hidden></div>
+      </div>
+      <button class="btn primary" id="publishBtn"><svg class="i"><use href="/web/icons.svg#send"/></svg><span>Publish</span></button>
+      <button class="btn icon ghost" id="settingsBtn" title="Settings"><svg class="i"><use href="/web/icons.svg#gear"/></svg></button>
+    </div>
+  </header>
+
+  <main class="work">
+    <section class="board" id="board">
+      <div class="board-head">
+        <div class="board-tools">
+          <label class="check small" title="Select all"><input type="checkbox" id="selectAll"><span></span></label>
+          <span class="sel-info" id="selInfo"></span>
+          <div class="sel-actions" id="selActions" hidden>
+            <button class="btn small ghost" data-bulk="emoji">Set emoji</button>
+            <button class="btn small ghost" data-bulk="copy-look">Copy look</button>
+            <button class="btn small ghost" data-bulk="paste-look" id="pasteLook" disabled>Paste look</button>
+            <button class="btn small ghost" data-bulk="move">Move to pack</button>
+            <button class="btn small danger" data-bulk="delete">Delete</button>
+          </div>
+        </div>
+        <div class="board-right">
+          <span class="summary" id="summary"></span>
+          <button class="btn small ghost" id="playAll" title="Play every video sticker">Play all</button>
+        </div>
+      </div>
+      <div class="grid" id="grid" role="listbox" aria-label="Stickers"></div>
+      <div class="empty" id="empty">
+        <div class="empty-art" aria-hidden="true">
+          <div class="empty-tile t1"></div><div class="empty-tile t2"></div><div class="empty-tile t3"></div>
+        </div>
+        <h2>Drop pictures or videos here</h2>
+        <p>PNG, JPG, WebP, GIF, MP4, MOV, WebM. Paste from the clipboard works too, and so does a link.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="emptyAdd">Choose files</button>
+          <button class="btn ghost" id="emptyLink">Paste a link</button>
+        </div>
+        <p class="fine">Everything is made on this computer. Nothing leaves it until you press Publish.</p>
+      </div>
+    </section>
+
+    <aside class="inspector" id="inspector">
+      <div class="insp-empty" id="inspEmpty">
+        <p>Pick a sticker to see it as it will look in a chat, and to shape it.</p>
+        <ul class="hints">
+          <li><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> move between stickers</li>
+          <li><kbd>⌫</kbd> remove, <kbd>⌘</kbd><kbd>A</kbd> select all</li>
+          <li><kbd>⌘</kbd><kbd>V</kbd> paste a picture or a link</li>
+          <li>Drag tiles to set the order of the pack</li>
+        </ul>
+      </div>
+      <div class="insp" id="insp" hidden></div>
+    </aside>
+  </main>
+
+  <div class="drop-veil" id="dropVeil" hidden><div><svg class="i big"><use href="/web/icons.svg#plus"/></svg><span>Drop to add</span></div></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <input type="file" id="fileInput" multiple accept="image/*,video/*,.gif,.webp,.webm,.mov,.mp4,.mkv,.avi,.heic,.avif" hidden>
+</div>
+
+<div class="dialogs" id="dialogs"></div>
+<script type="module" src="/web/js/main.js"></script>
+</body>
+</html>

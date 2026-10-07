@@ -1,91 +1,89 @@
-# TeleSticker
+# EmoSticker
 
-Telegram sticker maker that runs on your PC. Upload images and videos, remove backgrounds with AI, fine-tune stickers in a built-in editor, organize packs with emojis, and push them directly to Telegram. Emonad
+Make Telegram sticker packs on your own computer, from any pictures or videos, and publish them with one button.
 
-## Demo
+Drop files in, see each one exactly as it will look in a chat, fix what needs fixing (crop, outline, background,
+trim, loop), and press Publish. Nothing is uploaded anywhere until that button. By Emonad.
 
-https://github.com/user-attachments/assets/a7bacaed-3944-41fc-af41-4d522e9e0055
+## Run it
 
-## Features
+You need Python 3.9 or newer and, for video and GIF stickers, ffmpeg.
 
-- **Drag-and-drop upload** — batch upload images and videos with instant thumbnail previews
-- **AI background removal** — local, offline background removal powered by rembg with adjustable settings (model selection, alpha matting, threshold sliders, live preview)
-- **Built-in image editor** — crop, rotate, flip, brightness/contrast/saturation, freehand draw, text overlay, undo/redo history
-- **Sticker pack manager** — organize stickers into packs, drag-to-reorder, assign emoji per sticker
-- **Direct Telegram upload** — connect your bot token, create or update sticker sets, upload with one click
-- **Video & GIF support** — animated GIFs auto-detected and converted through the video pipeline (FFmpeg)
-- **Custom emoji mode** — toggle 100x100px output for Telegram custom emoji
-- **Format options** — choose WEBP or PNG per sticker, with automatic size optimization under 512KB
-- **Real-time progress** — Socket.IO powered processing with per-file status updates
-- **Dark & light themes** — glassmorphism UI, dark by default, toggle anytime
-- **Keyboard shortcuts** — Ctrl+Z/Y undo/redo, Ctrl+S save, Ctrl+Enter process, and more
-- **ZIP download** — batch download all processed stickers in one click
-
-## Quick Start
-
-### Option 1: One-Click Launch
 ```
-start.bat
-```
-Double-click `start.bat` — it installs dependencies on first run and opens the app in your browser.
-
-### Option 2: Manual Setup
-```bash
-python install.py      # install dependencies (first time only)
-python run.py          # launch the app
+git clone https://github.com/LordEmonad/TeleSticker.git EmoSticker
+cd EmoSticker
+python3 emosticker.py
 ```
 
-### Option 3: Direct
-```bash
-pip install -r requirements.txt
-python web_app.py
+The first run makes a private `.venv`, installs four Python packages and opens `http://127.0.0.1:4747`.
+After that it starts in a second. On a Mac you can also double-click `Start EmoSticker.command`; on Windows `start.bat`.
+
+ffmpeg: `brew install ffmpeg` (Mac), `winget install Gyan.FFmpeg` (Windows), `sudo apt install ffmpeg` (Linux).
+On Windows `python emosticker.py --get-ffmpeg` downloads a copy into the folder instead.
+
+Options: `--port 5000`, `--no-browser`, `--lan` (use it from your phone on the same Wi-Fi), `--ai` (also install
+AI background removal, about 300 MB; the app can install it later from Settings too).
+
+## What it does
+
+**One workspace.** The grid is your pack. Drop files anywhere, paste from the clipboard (⌘V), paste a link, or drop
+a whole folder. Every file is rendered to Telegram's exact spec the moment it lands, and again after every edit, so
+there is never a "process" step: a green dot means the file on disk is accepted by Telegram as it is.
+
+**The inspector** shows the selected sticker in a light or dark chat bubble at chat size or 1:1, with the facts
+Telegram checks: size, bytes against the limit, length, frame rate, transparency.
+
+- **Look**: Fit (one side 512, the whole picture), Square (padded), Fill (cropped about a focus point you drag), a
+  crop box, breathing room, rotate and flip, an outline in any colour, a drop shadow, WebP or PNG, automatic removal
+  of black bars.
+- **Background**: a colour key that needs no model (tap the colour on the picture, or let it read the border):
+  green screens, flat backgrounds and white cards, on stills and on video; tolerance, softness, edge shrink, feather,
+  despill. Or an AI cut-out (rembg) for photos, installed from inside the app.
+- **Motion** (video and GIF): a trim slider over a filmstrip; when the trim is longer than Telegram's 3 seconds,
+  speed it up, cut it, or **Find loop** (the stretch that wraps round best); Boomerang (forward then back); blend
+  the loop point; reverse; 30/24/20/15 fps.
+- **Emoji & tags**: up to 20 emoji per sticker with a searchable picker, and search keywords.
+
+**The engine.** Video is VP9 WebM with alpha, two-pass, at the best quality that fits under 256 KB (a secant search
+on CRF, usually three encodes), bt601-tagged, no audio, no metadata, then read back with libvpx to confirm the alpha
+and the numbers. Stills are lossless WebP when that fits, otherwise the highest quality that does. Alpha WebM, GIF,
+APNG, animated WebP, MOV with alpha, HEIC and AVIF (with `pillow-heif`) all come in.
+
+**Publishing.** Connect a bot once (the token stays in `data/settings.json` on your computer). Telegram needs to
+know which account owns the set: open your bot, press Start, and EmoSticker picks your account up from that
+message. Then Publish creates the set, or, if it exists, adds what is new, replaces what you re-edited, fixes the
+order and the title. Manage set shows what Telegram has, removes stickers, sets the set icon, deletes the set.
+Custom emoji sets (100×100) are a switch on the pack.
+
+**Packs and exports.** Several packs, move stickers between them, copy a look from one sticker and paste it on many,
+bulk emoji. Export the pack as a ZIP for Telegram, or re-encoded for WhatsApp, Discord or Signal.
+
+**Everything stays.** `data/library.json` and `data/media/` hold your stickers, edits and packs; close the app and
+open it a week later and it is all there.
+
+## Telegram's rules, as enforced
+
+| | Static | Video | Custom emoji |
+|---|---|---|---|
+| Format | WebP or PNG | WebM, VP9, no audio | same, 100×100 |
+| Size | one side exactly 512 px, the other ≤ 512 | same | exactly 100×100 |
+| Bytes | ≤ 512 KB | ≤ 256 KB | same |
+| Time | | ≤ 3 s, ≤ 30 fps, looped | same |
+| Per set | 120 | 120 | 200 |
+
+Set names are letters, digits and underscores, start with a letter, and end in `_by_<yourbot>`; EmoSticker builds
+them from the short name you type.
+
+## Development
+
+```
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
+.venv/bin/python -m pytest tests -q
 ```
 
-The app opens at **http://localhost:5000**.
+`server/` is the Flask app (`media/` holds the engine: probe, frames, key, transform, loop, encode), `web/` is the
+page (plain ES modules, no build step). Set `EMOSTICKER_DATA` to keep the library somewhere else.
 
-## Requirements
+## Licence
 
-- **Python 3.8+**
-- **FFmpeg** — required for video/GIF processing (auto-installed on Windows via `install.py`)
-- **rembg** (optional) — enables AI background removal. Install via `install.py` or manually with `pip install rembg onnxruntime`
-
-## Usage
-
-1. **Upload** — drag images/videos into the upload zone or click to browse
-2. **Edit** (optional) — click the pencil icon on any sticker to open the canvas editor
-3. **Remove Background** (optional) — click the wand icon on image stickers to open the background removal panel with adjustable settings
-4. **Configure** — select output format (WEBP/PNG) and sticker mode
-5. **Process** — hit Process All to convert everything to Telegram-ready specs
-6. **Preview** — inspect processed stickers at actual size on a transparency grid
-7. **Organize** — switch to the Pack tab to arrange stickers, assign emoji, and reorder by dragging
-8. **Upload to Telegram** — enter your bot token and user ID in the Telegram tab, then create your sticker set
-
-## Telegram Bot Setup
-
-1. Message [@BotFather](https://t.me/BotFather) on Telegram and send `/newbot` to create a bot and get your token
-2. Get your user ID from [@userinfobot](https://t.me/userinfobot)
-3. Paste both into the Telegram tab, validate your token, then create or update your sticker set
-
-## Sticker Specs Reference
-
-| Type | Format | Dimensions | Max Size | Notes |
-|------|--------|------------|----------|-------|
-| Static sticker | PNG / WEBP | 512px (one side) | 512 KB | — |
-| Video sticker | WEBM (VP9) | 512px (one side) | 256 KB | 1–3s, 30fps, no audio |
-| Custom emoji | PNG / WEBP | 100 x 100 px | 512 KB | — |
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+Z` | Undo (editor) |
-| `Ctrl+Y` | Redo (editor) |
-| `Ctrl+S` | Save pack |
-| `Ctrl+Enter` | Process all stickers |
-| `Escape` | Close modals |
-| `Delete` | Remove selected sticker |
-| `V` / `C` / `T` / `D` / `E` | Select / Crop / Text / Draw / Eraser tool |
-
-## License
-
-MIT
+MIT.

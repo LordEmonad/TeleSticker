@@ -1,42 +1,19 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+.venv/
+.pytest_cache/
+tests/.data/
 
-# Distribution / packaging
-dist/
-build/
+# the library: stickers, packs, the bot token
+data/
 
-# Windows specific files
-*.lnk
+# a bundled ffmpeg (Windows --get-ffmpeg)
+bin/
 
-# macOS specific files
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Environment
-.env
-.venv
-env/
-venv/
-ENV/
-
-# Output directory contents (keep the directory itself)
-output/*
-!output/.gitkeep
-
-# Visual Studio Code settings
+# editors and systems
 .vscode/
-
-# Claude Code
+.idea/
+.DS_Store
+._*
 .claude/
-
-# Uploaded files (temp)
-uploads/
-
-# Saved packs (user data)
-packs/
-
-# FFmpeg binaries
-ffmpeg/

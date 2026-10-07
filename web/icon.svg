@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff4d8d"/><stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#140d1e"/>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="none" stroke="url(#g)" stroke-width="3"/>
+  <!-- a wilted rose: stem bowed, head hanging -->
+  <path d="M22 50c6-2 12-9 15-19" fill="none" stroke="#6fbf73" stroke-width="3" stroke-linecap="round"/>
+  <path d="M30 40c-3-1-6 1-7 4 3 1 6-1 7-4z" fill="#6fbf73"/>
+  <path d="M38 31c-1-6 3-11 8-11 2 5 1 10-3 13 2 1 4 1 6 0-1 4-5 7-9 6-3-1-4-5-2-8z" fill="url(#g)"/>
+  <path d="M38 31c-5-1-8-6-7-11 5 0 9 4 9 9" fill="#ff4d8d"/>
+  <circle cx="44" cy="25" r="2.2" fill="#ffd1e3" opacity=".7"/>
+</svg>
