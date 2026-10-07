@@ -17,6 +17,7 @@ edit (every field optional, the defaults make the file the platform takes):
 """
 import logging
 import os
+import shutil
 import sys
 import time
 
@@ -227,7 +228,7 @@ def intake(path, name):
     d = library.media_dir(sid)
     ext = os.path.splitext(name)[1].lower() or '.bin'
     src_path = d / ('source' + ext)
-    os.replace(path, src_path)
+    shutil.move(path, src_path)   # the upload lands in the system temp folder, often another disk than data/
     info['path'] = str(src_path)
     info['name'] = name
     info['bytes'] = os.path.getsize(src_path)
