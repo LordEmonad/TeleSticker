@@ -157,10 +157,9 @@ function updateTile(t, s) {
   t.querySelector('.tile-emoji').textContent = (s.emoji || [])[0] || '';
   const meta = t.querySelector('.tile-meta');
   meta.innerHTML = '';
+  if (isVideo) meta.append(h('span', { text: out.duration ? fmtSecs(out.duration) : 'video' }));
   if (out.bytes) meta.append(h('span', { class: out.bytes > out.limit ? 'over' : '', text: fmtBytes(out.bytes) }));
-  const vb = t.querySelector('.tile-video-badge');
-  vb.textContent = isVideo ? (out.duration ? fmtSecs(out.duration) : 'video') : '';
-  vb.hidden = !isVideo;
+  t.querySelector('.tile-video-badge').hidden = true;
   t.title = s.name;
 }
 

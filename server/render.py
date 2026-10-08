@@ -223,7 +223,15 @@ def schedule_render(sid, final=True):
 
 def intake(path, name):
     """Probe a new file, make its thumbnail and filmstrip, add it to the library and queue its first render."""
-    info = probe(path)
+    try:
+        info = probe(path)
+        if not info or info['width'] < 1 or info['height'] < 1:
+            raise ValueError('no picture')
+        # decode one frame now: a file that cannot be read is refused here, not shown as a broken sticker
+        fr, _ = load_frames(path, info, 256, 0, min(0.2, info['duration'] or 0.2) if info['kind'] == 'video' else None, fps=5, max_frames=2)
+    except Exception as e:
+        log.info('refused %s: %s', name, str(e)[-200:])
+        raise ValueError('This file could not be read as a picture or a video') from e
     sid = library.new_id()
     d = library.media_dir(sid)
     ext = os.path.splitext(name)[1].lower() or '.bin'
@@ -232,12 +240,7 @@ def intake(path, name):
     info['path'] = str(src_path)
     info['name'] = name
     info['bytes'] = os.path.getsize(src_path)
-    # a thumbnail for the grid, before any render
-    try:
-        fr, _ = load_frames(str(src_path), info, 256, 0, min(0.2, info['duration'] or 0.2) if info['kind'] == 'video' else None, fps=5, max_frames=2)
-        Image.fromarray(fr[0]).save(d / 'thumb.png')
-    except Exception as e:
-        log.warning('thumb failed for %s: %s', name, e)
+    Image.fromarray(fr[0]).save(d / 'thumb.png')
     if info['kind'] == 'video':
         try:
             strip = filmstrip(str(src_path), info)

@@ -181,6 +181,19 @@ def delete_pack(pid, with_stickers=False):
         return True
 
 
+def remove_from_pack(pid, sids):
+    """Take stickers out of a pack's order (they stay in the library and in any other pack)."""
+    with _lock:
+        db = _load()
+        p = db['packs'].get(pid)
+        if not p:
+            return None
+        p['stickers'] = [s for s in p['stickers'] if s not in set(sids)]
+        p['updated'] = now()
+        _save()
+        return deepcopy(p)
+
+
 def move_stickers(sids, to_pid):
     """Move stickers into another pack (or copy, if they are the same ids in both: a sticker may be in two packs)."""
     with _lock:

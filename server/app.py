@@ -98,9 +98,12 @@ def create_app():
                 try:
                     rec = render.intake(tmp, f.filename)
                     got.append(dict(name=f.filename, id=rec['id']))
+                except ValueError as e:
+                    got.append(dict(name=f.filename, error=str(e)))
                 except Exception as e:
                     log.exception('intake failed')
                     got.append(dict(name=f.filename, error=str(e)[-200:]))
+                finally:
                     if os.path.exists(tmp):
                         os.remove(tmp)
         return jsonify(dict(files=got))
@@ -131,6 +134,10 @@ def create_app():
                 name += '.' + ext
             rec = render.intake(tmp, name)
             return jsonify(id=rec['id'])
+        except httpx.HTTPStatusError as e:
+            return jsonify(error=f'The link answered {e.response.status_code}'), 400
+        except httpx.HTTPError as e:
+            return jsonify(error=f'Could not fetch the link: {type(e).__name__}'), 400
         except Exception as e:
             return jsonify(error=str(e)[-200:]), 400
 
@@ -150,12 +157,12 @@ def create_app():
                 s['edit'] = allowed['edit']
                 library.update_sticker(sid, edit_full=True)
         if 'emoji' in allowed:
-            allowed['emoji'] = [e for e in allowed['emoji'] if isinstance(e, str) and e.strip()][: TG['emoji_per_sticker']] or ['🥀']
+            allowed['emoji'] = [e.strip() for e in allowed['emoji'] if isinstance(e, str) and is_emoji(e.strip())][: TG['emoji_per_sticker']] or ['🥀']
         if 'keywords' in allowed:
             kws, total = [], 0
             for k in allowed['keywords']:
-                k = str(k).strip()[:64]
-                if k and total + len(k) <= TG['keywords_total'] and len(kws) < 20:
+                k = str(k).strip()[:32]
+                if k and k not in kws and total + len(k) <= TG['keywords_total'] and len(kws) < 20:
                     kws.append(k); total += len(k)
             allowed['keywords'] = kws
         s = library.get_sticker(sid)
@@ -262,6 +269,10 @@ def create_app():
     def patch_pack(pid):
         body = request.json or {}
         fields = {k: v for k, v in body.items() if k in ('title', 'name', 'type', 'stickers', 'needs_repainting')}
+        if 'title' in fields:
+            fields['title'] = (str(fields['title']).strip() or 'My stickers')[:64]
+        if 'type' in fields and fields['type'] not in ('regular', 'custom_emoji'):
+            return jsonify(error='type must be regular or custom_emoji'), 400
         p = library.update_pack(pid, **fields)
         if not p:
             return jsonify(error='not found'), 404
@@ -285,9 +296,8 @@ def create_app():
     def move(pid):
         b = request.json or {}
         p = library.move_stickers(b.get('ids') or [], b.get('to'))
-        if b.get('remove'):
-            cur = library.current_pack()
-            library.update_pack(pid, stickers=[s for s in cur['stickers'] if s not in (b.get('ids') or [])])
+        if p and b.get('remove'):
+            library.remove_from_pack(pid, b.get('ids') or [])
         return jsonify(p or {})
 
     @app.get('/api/pack/<pid>/export')
@@ -491,3 +501,26 @@ def create_app():
 
 def _have(path):
     return bool(shutil.which(path) or os.path.exists(path))
+
+
+_EMOJI_JOINERS = {0x200D, 0xFE0F, 0xFE0E, 0x20E3, 0x1F3FB, 0x1F3FC, 0x1F3FD, 0x1F3FE, 0x1F3FF}
+
+
+def is_emoji(s):
+    """One emoji: pictographs, flags, keycaps and their joiner sequences; never a letter, a digit or a word.
+    Telegram refuses anything else with STICKER_EMOJI_INVALID, after the upload."""
+    import unicodedata
+    if not s or len(s) > 16:
+        return False
+    cps = [ord(c) for c in s]
+    body = [c for c in cps if c not in _EMOJI_JOINERS and not (0xE0020 <= c <= 0xE007F)]
+    if not body:
+        return False
+    for c in body:
+        picto = (0x1F000 <= c <= 0x1FAFF) or (0x2600 <= c <= 0x27BF) or (0x2B00 <= c <= 0x2BFF) or (0x2300 <= c <= 0x23FF) \
+            or (0x1F1E6 <= c <= 0x1F1FF) or c in (0x00A9, 0x00AE, 0x203C, 0x2049, 0x2122, 0x2139, 0x24C2, 0x3030, 0x303D, 0x3297, 0x3299) \
+            or (0x2190 <= c <= 0x21FF) or (0x25A0 <= c <= 0x25FF) or (0x2900 <= c <= 0x297F)
+        keycap = 0x20E3 in cps and (0x30 <= c <= 0x39 or c in (0x23, 0x2A))
+        if not (picto or keycap or unicodedata.category(chr(c)) == 'So'):
+            return False
+    return True

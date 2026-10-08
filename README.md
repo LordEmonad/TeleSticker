@@ -5,6 +5,10 @@ Make Telegram sticker packs on your own computer, from any pictures or videos, a
 Drop files in, see each one exactly as it will look in a chat, fix what needs fixing (crop, outline, background,
 trim, loop), and press Publish. Nothing is uploaded anywhere until that button. By Emonad.
 
+![EmoSticker: the pack as a grid, one sticker open in the inspector](docs/emosticker.png)
+
+<p align="center"><img src="docs/emosticker-motion.png" width="300" alt="The Motion tab: trim over a filmstrip, loop finder"> &nbsp; <img src="docs/emosticker-phone.png" width="300" alt="On a phone"></p>
+
 ## Run it
 
 You need Python 3.9 or newer and, for video and GIF stickers, ffmpeg.
@@ -73,6 +77,16 @@ open it a week later and it is all there.
 
 Set names are letters, digits and underscores, start with a letter, and end in `_by_<yourbot>`; EmoSticker builds
 them from the short name you type.
+
+## Why not the @Stickers bot, or a website?
+
+| | @Stickers bot | sticker websites | EmoSticker |
+|---|---|---|---|
+| Video stickers from any clip | you encode the WebM yourself | some, with a watermark or a queue | yes, to the byte limit, with a loop finder |
+| Green screen / background removal | no | sometimes, uploads your file | on your computer, stills and video |
+| See it in a chat before publishing | no | no | yes, light and dark |
+| Edit a published set | one command at a time | no | replace, reorder, retitle, icon, delete |
+| Where your files go | Telegram | their servers | nowhere |
 
 ## Development
 
