@@ -62,8 +62,14 @@ def _client():
     return httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0))
 
 
+WRITES = {'createNewStickerSet', 'addStickerToSet', 'replaceStickerInSet', 'deleteStickerFromSet',
+          'setStickerPositionInSet', 'deleteStickerSet', 'setStickerSetThumbnail'}
+
+
 def call(token, method, data=None, files=None, retries=2):
     url = API.format(token=token, method=method)
+    if method in WRITES:
+        retries = 0   # a write whose answer was lost may have landed: never send it twice on our own
     last = None
     for attempt in range(retries + 1):
         try:

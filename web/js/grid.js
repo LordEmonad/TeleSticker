@@ -63,7 +63,8 @@ function onKey(e) {
 
 export async function deleteIds(ids) {
   if (!ids.length) return;
-  if (ids.length > 1 && !confirm(`Remove ${plural(ids.length, 'sticker')} from EmoSticker? The files are deleted from your computer.`)) return;
+  const what = ids.length === 1 ? `"${state.stickers[ids[0]]?.name || 'this sticker'}"` : plural(ids.length, 'sticker');
+  if (!confirm(`Remove ${what} from EmoSticker? The file is deleted from your computer (a copy already on Telegram stays).`)) return;
   for (const id of ids) {
     try { await api.remove(id); } catch (e) { toast(e.message, 'bad'); }
     delete state.stickers[id];
@@ -235,7 +236,21 @@ export async function addFiles(files) {
   if (!list.length) return;
   const t = toast(`Adding ${plural(list.length, 'file')}…`, 'info', 0);
   try {
-    const res = await api.upload(list, (p) => { t.querySelector('span').textContent = `Uploading ${Math.round(p * 100)}%`; });
+    // in batches under the server's 400 MB request cap, a few files at a time
+    const batches = [];
+    let cur = [], size = 0;
+    for (const f of list) {
+      if (cur.length && (size + f.size > 300 * 1024 * 1024 || cur.length >= 12)) { batches.push(cur); cur = []; size = 0; }
+      cur.push(f); size += f.size;
+    }
+    if (cur.length) batches.push(cur);
+    const res = { files: [] };
+    let done = 0;
+    for (const batch of batches) {
+      const r = await api.upload(batch, (p) => { t.querySelector('span').textContent = `Uploading ${Math.round(((done + p * batch.length) / list.length) * 100)}%`; });
+      res.files.push(...r.files);
+      done += batch.length;
+    }
     t.remove();
     const bad = res.files.filter((f) => f.error);
     const ok = res.files.filter((f) => f.id);

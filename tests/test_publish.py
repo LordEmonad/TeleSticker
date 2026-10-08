@@ -66,7 +66,7 @@ def world(tmp_path, monkeypatch):
             return True
         if method == 'setStickerSetTitle':
             sets[data['name']]['title'] = data['title']; return True
-        if method == 'setStickerEmojiList':
+        if method in ('setStickerEmojiList', 'setStickerKeywords'):
             return True
         raise AssertionError('unexpected method ' + method)
 

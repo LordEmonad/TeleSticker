@@ -44,6 +44,7 @@ export function mountTrim(parent, { strip, duration, start, end, onChange }) {
   el.addEventListener('keydown', (e) => {
     const step = e.shiftKey ? 0.5 : 1 / 24;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.stopPropagation();   // the page's arrows switch stickers
       const d = e.key === 'ArrowLeft' ? -step : step;
       if (e.altKey) b = clamp(b + d, a + minLen, dur); else a = clamp(a + d, 0, b - minLen);
       draw(); onChange(a, b, true); e.preventDefault();

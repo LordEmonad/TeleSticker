@@ -45,8 +45,13 @@ def _publish(pid, token, user_id, name, title, bot_username, sticker_type, needs
     db = library.snapshot()
     pack = db['packs'][pid]
     stickers = [db['stickers'][s] for s in pack['stickers'] if s in db['stickers']]
-    ready = [s for s in stickers if (s.get('out') or {}).get('ready')]
-    not_ready = [s for s in stickers if not (s.get('out') or {}).get('ready')]
+    want_side = TG['emoji_side'] if sticker_type == 'custom_emoji' else TG['side']
+
+    def is_ready(s):
+        o = s.get('out') or {}
+        return bool(o.get('ready')) and o.get('side', want_side) == want_side and o.get('final', True)
+    ready = [s for s in stickers if is_ready(s)]
+    not_ready = [s for s in stickers if not is_ready(s)]
     for s in not_ready:
         _say(pid, 'skip', f'{s["name"]} is not ready and was left out')
     if not ready:
@@ -93,14 +98,16 @@ def _publish(pid, token, user_id, name, title, bot_username, sticker_type, needs
         for sid, why in res['failed']:
             _say(pid, 'error', f'{db["stickers"][sid]["name"]}: {why}')
         gens = {s['id']: (s['out'] or {}).get('gen') for s in ready}
+        kws = {s['id']: list(s.get('keywords') or []) for s in ready}
         library.update_pack(pid, name=name, title=title, published=dict(
             name=name, title=title, type=sticker_type, bot=bot_username, user_id=int(user_id), stickers=published,
-            gens=gens, at=library.now(), link=f'https://t.me/addstickers/{name}'))
+            gens=gens, kws=kws, at=library.now(), link=f'https://t.me/addstickers/{name}'))
         _say(pid, 'done', f'Published {len(published)} stickers', link=f'https://t.me/addstickers/{name}')
         return
 
     # the set exists: add new, replace changed, retitle, then order
     gens = dict(pub.get('gens') or {})
+    kws_sent = dict(pub.get('kws') or {})
     if remote.get('title') != title:
         telegram.set_title(token, name, title)
         _say(pid, 'step', f'Title set to {title}')
@@ -127,6 +134,10 @@ def _publish(pid, token, user_id, name, title, bot_username, sticker_type, needs
                     if tg and tg.get('emoji') and st.get('emoji') and tg['emoji'] != st['emoji'][0]:
                         telegram.set_emoji(token, published[sid], st['emoji'])
                         _say(pid, 'step', f'Emoji set on {st["name"]}')
+                    if (st.get('keywords') or []) != (kws_sent.get(sid) or []):
+                        telegram.set_keywords(token, published[sid], st.get('keywords') or [])
+                        kws_sent[sid] = list(st.get('keywords') or [])
+                        _say(pid, 'step', f'Keywords set on {st["name"]}')
                 continue
             if count >= limit:
                 _say(pid, 'skip', f'{st["name"]}: the set is full')
@@ -139,6 +150,7 @@ def _publish(pid, token, user_id, name, title, bot_username, sticker_type, needs
             remote = fresh
             remote_ids = {s['file_id'] for s in remote['stickers']}
             gens[sid] = gen
+            kws_sent[sid] = list(st.get('keywords') or [])
             count += 1
             _say(pid, 'step', f'Added {st["name"]}')
         except telegram.TelegramError as e:
@@ -160,7 +172,7 @@ def _publish(pid, token, user_id, name, title, bot_username, sticker_type, needs
         _say(pid, 'step', 'Order updated')
     library.update_pack(pid, name=name, title=title, published=dict(
         name=name, title=title, type=sticker_type, bot=bot_username, user_id=int(user_id), stickers=published,
-        gens=gens, at=library.now(), link=f'https://t.me/addstickers/{name}'))
+        gens=gens, kws=kws_sent, at=library.now(), link=f'https://t.me/addstickers/{name}'))
     _say(pid, 'done', f'{name} is up to date ({len(published)} stickers)', link=f'https://t.me/addstickers/{name}')
 
 

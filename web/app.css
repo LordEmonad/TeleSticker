@@ -295,7 +295,8 @@ select.text { appearance: none; -webkit-appearance: none; padding-right: 26px; b
 
 /* crop / focus editor */
 .frame-ed { position: relative; border-radius: 10px; overflow: hidden; background: var(--check); border: 1px solid var(--line-2); user-select: none; -webkit-user-select: none; touch-action: none; }
-.frame-ed img { display: block; width: 100%; height: auto; max-height: 300px; object-fit: contain; margin: 0 auto; }
+.frame-ed { display: flex; justify-content: center; }
+.frame-ed img { display: block; width: auto; height: auto; max-width: 100%; max-height: 300px; }
 .frame-ed .cropbox { position: absolute; border: 1.5px solid #fff; box-shadow: 0 0 0 9999px rgba(10, 7, 16, .55); cursor: move; }
 .frame-ed .cropbox::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to right, transparent 33.2%, rgba(255,255,255,.35) 33.2%, rgba(255,255,255,.35) 33.6%, transparent 33.6%, transparent 66.4%, rgba(255,255,255,.35) 66.4%, rgba(255,255,255,.35) 66.8%, transparent 66.8%), linear-gradient(to bottom, transparent 33.2%, rgba(255,255,255,.35) 33.2%, rgba(255,255,255,.35) 33.6%, transparent 33.6%, transparent 66.4%, rgba(255,255,255,.35) 66.4%, rgba(255,255,255,.35) 66.8%, transparent 66.8%); pointer-events: none; }
 .frame-ed .h { position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 3px; border: 1px solid rgba(0,0,0,.4); }

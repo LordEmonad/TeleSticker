@@ -232,7 +232,7 @@ export function openPackMenu(anchor) {
     h('button', { onClick: async () => { m.remove(); const t = prompt('Name the new pack', 'New pack'); if (t == null) return; await api.newPack(t.trim() || 'New pack'); state.active = null; select([], 'clear'); await load(); } }, icon('plus'), 'New pack'),
     h('button', { onClick: () => { m.remove(); renamePack(); } }, icon('copy'), 'Rename this pack'),
     pack()?.published ? h('button', { onClick: () => { m.remove(); openRemote(); } }, icon('telegram'), 'Manage the Telegram set') : null,
-    packs.length > 1 ? h('button', { class: 'on', onClick: async () => { m.remove(); const p = pack(); const keep = confirm(`Delete the pack "${p.title}"?\n\nOK deletes the pack AND its ${plural(p.stickers.length, 'sticker')}.\nCancel keeps everything.`); if (!keep) return; await api.deletePack(p.id, true); state.active = null; select([], 'clear'); await load(); } }, icon('trash'), 'Delete this pack') : null,
+    packs.length > 1 ? h('button', { class: 'on', onClick: async () => { m.remove(); const p = pack(); const go = confirm(`Delete the pack "${p.title}" and its ${plural(p.stickers.length, 'sticker')}?\n\nThe sticker files are deleted from this computer. A set already published to Telegram stays there.`); if (!go) return; await api.deletePack(p.id, true); state.active = null; select([], 'clear'); await load(); } }, icon('trash'), 'Delete this pack') : null,
   );
   document.body.append(m);
   const r = anchor.getBoundingClientRect();
@@ -275,7 +275,9 @@ export async function pasteLook(ids) {
     if (!s) continue;
     const e = { ...look };
     if (s.source.kind !== 'video') for (const k of ['fit_time', 'boomerang', 'blend', 'fps', 'reverse']) delete e[k];
-    try { await api.patch(id, { edit: e }); } catch (err) { toast(err.message, 'bad'); }
+    // the look replaces the target's whole look, except its own crop and trim, which belong to its picture
+    for (const k of ['crop', 'start', 'end', 'focus']) if (s.edit?.[k] != null) e[k] = s.edit[k];
+    try { await api.patch(id, { edit: e, replace_edit: true }); } catch (err) { toast(err.message, 'bad'); }
   }
   toast(`Look applied to ${plural(ids.length, 'sticker')}`, 'ok', 1500);
 }

@@ -36,7 +36,7 @@ def _pipe(frames, fps, args, out, pix_in='rgba'):
         for f in frames:
             p.stdin.write(f.tobytes())
         p.stdin.close()
-    except BrokenPipeError:
+    except (BrokenPipeError, OSError):   # ffmpeg quit early: its stderr below says why (Windows raises OSError 22)
         pass
     err = p.stderr.read().decode('utf-8', 'replace')
     if p.wait() != 0:

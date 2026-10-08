@@ -1,6 +1,6 @@
 // The inspector: one sticker as it will look in a chat, and every control that shapes it.
 import { api, media } from './api.js';
-import { state, subscribe, setActive, pack, notify } from './store.js';
+import { state, subscribe, setActive, pack, notify, order } from './store.js';
 import { h, icon, fmtBytes, fmtSecs, debounce, clamp, rgbHex, hexRgb, toast, canWebm, copyText } from './util.js';
 import { openEmojiPicker, QUICK, isEmoji } from './emoji.js';
 import { deleteIds, statusClass, statusText } from './grid.js';
@@ -172,11 +172,14 @@ function panelLook() {
   p.append(fe);
   const margin = sliderField('Breathing room', e.margin || 0, 0, 0.3, 0.01, (v) => `${Math.round(v * 100)}%`, (v, final) => (final ? commit : live)({ margin: v || null }));
   p.append(margin);
+  // these read edit() when pressed: the `e` captured at build time goes stale after the first press
+  const turn = (partial) => { commit(partial); setTimeout(() => frameEditor?.refresh(), 150); };
+  const flipH = h('button', { title: 'Flip horizontally', class: e.flip_h ? 'on' : '', onClick: () => { const on = !edit().flip_h; flipH.classList.toggle('on', on); turn({ flip_h: on || null }); } }, icon('fliph'));
+  const flipV = h('button', { title: 'Flip vertically', class: e.flip_v ? 'on' : '', onClick: () => { const on = !edit().flip_v; flipV.classList.toggle('on', on); turn({ flip_v: on || null }); } }, icon('flipv'));
   p.append(h('div', { class: 'row' }, h('label', { text: 'Turn' }), h('div', { class: 'iconbar' },
-    h('button', { title: 'Rotate left', onClick: () => commit({ rotate: ((e.rotate || 0) + 270) % 360 }) }, icon('rotl')),
-    h('button', { title: 'Rotate right', onClick: () => commit({ rotate: ((e.rotate || 0) + 90) % 360 }) }, icon('rotr')),
-    h('button', { title: 'Flip horizontally', class: e.flip_h ? 'on' : '', onClick: () => commit({ flip_h: !e.flip_h || null }) }, icon('fliph')),
-    h('button', { title: 'Flip vertically', class: e.flip_v ? 'on' : '', onClick: () => commit({ flip_v: !e.flip_v || null }) }, icon('flipv')),
+    h('button', { title: 'Rotate left', onClick: () => turn({ rotate: (((edit().rotate || 0) + 270) % 360) || null }) }, icon('rotl')),
+    h('button', { title: 'Rotate right', onClick: () => turn({ rotate: (((edit().rotate || 0) + 90) % 360) || null }) }, icon('rotr')),
+    flipH, flipV,
   )));
   // outline
   const ol = e.outline || {};
@@ -391,9 +394,19 @@ function moreMenu(anchor) {
   const st = s();
   const m = h('div', { class: 'menu floating', style: { position: 'fixed', zIndex: 80 } });
   const item = (label, ic, fn, cls) => h('button', { class: cls || '', onClick: () => { m.remove(); fn(); } }, ic ? icon(ic) : null, label);
+  const ids = order();
+  const at = ids.indexOf(cur);
+  const moveBy = async (d) => {
+    const next = [...ids]; const j = Math.max(0, Math.min(next.length - 1, at + d));
+    next.splice(at, 1); next.splice(j, 0, cur);
+    const p = pack(); p.stickers = next; notify('pack');
+    try { await api.patchPack(p.id, { stickers: next }); } catch (e) { toast(e.message, 'bad'); }
+  };
   m.append(
     item('Download this file', 'download', () => { location.href = `/api/sticker/${cur}/download`; }),
     item('Duplicate', 'copy', async () => { try { const r = await api.duplicate(cur); setActive(r.id); } catch (e) { toast(e.message, 'bad'); } }),
+    at > 0 ? item('Move earlier in the pack', 'rotl', () => moveBy(-1)) : null,
+    at < ids.length - 1 ? item('Move later in the pack', 'rotr', () => moveBy(1)) : null,
     item('Copy look', 'copy', () => { state.lookClipboard = { ...st.edit }; delete state.lookClipboard.crop; delete state.lookClipboard.start; delete state.lookClipboard.end; toast('Look copied: pick other stickers and Paste look', 'ok'); notify('selection'); }),
     item('Render again', 'loop', () => api.render(cur).catch((e) => toast(e.message, 'bad'))),
     item('Copy source path', 'link', () => copyText(st.source.path).then(() => toast('Path copied', 'ok', 1500))),

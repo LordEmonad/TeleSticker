@@ -61,7 +61,7 @@ VIDEO_EXT = {'mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi', 'wmv', 'gif', 'apng', 'w
 ALL_EXT = IMAGE_EXT | VIDEO_EXT
 
 # The whole working set of a video is held in memory as RGBA frames at the output size.
-MAX_WORK_FRAMES = 450            # 15 s at 30 fps: trims pick a window inside it
+MAX_WORK_FRAMES = 360            # 12 s at 30 fps: a longer trim is decoded at fewer fps (and ~1 MB a frame at 640 px)
 PREVIEW_FRAMES = 12              # the filmstrip under the trim slider
 
 

@@ -87,8 +87,9 @@ def create_app():
             for f in request.files.getlist(key):
                 if not f.filename:
                     continue
-                name = secure_filename(f.filename) or 'file'
-                ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+                # the extension comes from the real name: secure_filename strips non-ASCII names to nothing
+                ext = os.path.splitext(f.filename)[1].lstrip('.').lower()
+                ext = ''.join(ch for ch in ext if ch.isalnum())
                 if ext not in ALL_EXT:
                     got.append(dict(name=f.filename, error='not a picture or video we know'))
                     continue
@@ -129,10 +130,12 @@ def create_app():
                 fd, tmp = tempfile.mkstemp(suffix='.' + ext, prefix='emosticker-in-')
                 os.write(fd, r.content)
                 os.close(fd)
-            name = os.path.basename(url.split('?')[0]) or f'download.{ext}'
-            if '.' not in name:
-                name += '.' + ext
-            rec = render.intake(tmp, name)
+            stem = os.path.splitext(os.path.basename(url.split('?')[0]))[0] or 'download'
+            try:
+                rec = render.intake(tmp, f'{stem}.{ext}')
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
             return jsonify(id=rec['id'])
         except httpx.HTTPStatusError as e:
             return jsonify(error=f'The link answered {e.response.status_code}'), 400
@@ -151,11 +154,6 @@ def create_app():
     def patch_sticker(sid):
         body = request.json or {}
         allowed = {k: v for k, v in body.items() if k in ('name', 'emoji', 'keywords', 'edit')}
-        if 'edit' in allowed and body.get('replace_edit'):
-            s = library.update_sticker(sid)
-            if s:
-                s['edit'] = allowed['edit']
-                library.update_sticker(sid, edit_full=True)
         if 'emoji' in allowed:
             allowed['emoji'] = [e.strip() for e in allowed['emoji'] if isinstance(e, str) and is_emoji(e.strip())][: TG['emoji_per_sticker']] or ['🥀']
         if 'keywords' in allowed:
@@ -169,22 +167,22 @@ def create_app():
         if not s:
             return jsonify(error='not found'), 404
         if 'edit' in allowed:
-            new_edit = dict(s.get('edit') or {})
+            # replace_edit: the whole look is the one given (Paste look); otherwise the fields given are merged,
+            # a null taking a field away
+            new_edit = {} if body.get('replace_edit') else dict(s.get('edit') or {})
             for k, v in allowed['edit'].items():
                 if v is None:
                     new_edit.pop(k, None)
                 else:
                     new_edit[k] = v
-            s['edit'] = new_edit
-            with library._lock:
-                db = library._load()
-                db['stickers'][sid]['edit'] = new_edit
-                for k in ('name', 'emoji', 'keywords'):
-                    if k in allowed:
-                        db['stickers'][sid][k] = allowed[k]
-                db['stickers'][sid]['updated'] = library.now()
-                library._save()
-            render.schedule_render(sid, final=not body.get('quick'))
+            library.set_edit(sid, new_edit)
+            meta = {k: v for k, v in allowed.items() if k != 'edit'}
+            if meta:
+                library.update_sticker(sid, **meta)
+            quick = bool(body.get('quick'))
+            render.schedule_render(sid, final=not quick)
+            if quick:
+                _final_later(sid)
         else:
             library.update_sticker(sid, **allowed)
         s = library.get_sticker(sid)
@@ -210,10 +208,11 @@ def create_app():
         src = s['source']['path']
         fd, tmp = tempfile.mkstemp(suffix=os.path.splitext(src)[1]); os.close(fd)
         shutil.copy(src, tmp)
-        rec = render.intake(tmp, s['name'])
-        library.update_sticker(rec['id'], edit=dict(s.get('edit') or {}), emoji=list(s.get('emoji') or []),
-                               keywords=list(s.get('keywords') or []))
-        render.schedule_render(rec['id'])
+        try:
+            rec = render.intake(tmp, s['name'], edit=s.get('edit') or {}, emoji=s.get('emoji'), keywords=s.get('keywords'))
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
         return jsonify(library.get_sticker(rec['id']))
 
     @app.post('/api/sticker/<sid>/pick')
@@ -235,7 +234,7 @@ def create_app():
     # ---- files ----------------------------------------------------------------------------------------
     @app.get('/api/media/<sid>/<name>')
     def media(sid, name):
-        d = library.media_dir(sid)
+        d = library.media_dir(sid, create=False)
         name = secure_filename(name)
         if not (d / name).exists():
             abort(404)
@@ -295,9 +294,13 @@ def create_app():
     @app.post('/api/pack/<pid>/move')
     def move(pid):
         b = request.json or {}
+        src_pack = library.snapshot()['packs'].get(pid) or {}
         p = library.move_stickers(b.get('ids') or [], b.get('to'))
         if p and b.get('remove'):
             library.remove_from_pack(pid, b.get('ids') or [])
+        if p and p.get('type', 'regular') != src_pack.get('type', 'regular'):
+            for sid in b.get('ids') or []:   # another canvas (512 vs 100): render for the new pack
+                render.schedule_render(sid)
         return jsonify(p or {})
 
     @app.get('/api/pack/<pid>/export')
@@ -448,6 +451,15 @@ def create_app():
             return jsonify(error='no such sticker'), 404
         try:
             from .media import encode, transform
+            if pub.get('type') == 'custom_emoji':
+                # an emoji set's icon is one of its own emoji: Telegram wants that sticker's custom_emoji_id
+                fid = (pub.get('stickers') or {}).get(sid)
+                remote = telegram.get_set(st['token'], pub['name'])
+                tg = next((x for x in remote.get('stickers', []) if x['file_id'] == fid), None)
+                if not tg or not tg.get('custom_emoji_id'):
+                    return jsonify(error='Publish this sticker to the set first; the icon must be one of its emoji'), 400
+                telegram.set_emoji_thumbnail(st['token'], pub['name'], tg['custom_emoji_id'])
+                return jsonify(ok=True)
             is_video = s['source']['kind'] == 'video'
             spec = dict(fmt='webm' if is_video else 'webp', side=100, square=True,
                         bytes=TG['thumb_video_bytes'] if is_video else TG['thumb_static_bytes'], seconds=3.0, fps=30)
@@ -501,6 +513,22 @@ def create_app():
 
 def _have(path):
     return bool(shutil.which(path) or os.path.exists(path))
+
+
+_final_timers = {}
+_final_lock = threading.Lock()
+
+
+def _final_later(sid, delay=2.5):
+    """A quick (preview) render always gets its final render, even if the page that asked goes away."""
+    with _final_lock:
+        t = _final_timers.pop(sid, None)
+        if t:
+            t.cancel()
+        t = threading.Timer(delay, lambda: render.schedule_render(sid, final=True))
+        t.daemon = True
+        _final_timers[sid] = t
+        t.start()
 
 
 _EMOJI_JOINERS = {0x200D, 0xFE0F, 0xFE0E, 0x20E3, 0x1F3FB, 0x1F3FC, 0x1F3FD, 0x1F3FE, 0x1F3FF}

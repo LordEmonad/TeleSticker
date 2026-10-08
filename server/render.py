@@ -44,8 +44,8 @@ def target_for(sticker, pack_type='regular', target='telegram'):
 def _source_frames(st, edit, spec, is_video, for_preview=False):
     """Decode the chosen window of the source at a working size a little above the target (crop needs room)."""
     src = st['source']
-    side = max(spec['side'] * 2, 768) if spec['side'] <= 320 else spec['side'] * 2
-    side = min(side, 1024)
+    # a quarter above the target leaves room for a crop without holding four times the pixels
+    side = min(1024, max(640, int(spec['side'] * 1.25)))
     if not is_video:
         return load_image(src['path'], side)[None], 1.0
     start = float(edit.get('start') or 0.0)
@@ -75,7 +75,7 @@ def _look(frames, edit, spec, preview_only=False):
             frames = rembg_bridge.remove_frames(frames, model=bg.get('model') or 'isnet-general-use',
                                                 matting=bg.get('matting', True), fg=bg.get('fg', 240),
                                                 bg=bg.get('bgt', 10), erode=bg.get('erode_ai', 10))
-    if edit.get('trim_content', True) and (bg.get('mode') in ('key', 'ai') or edit.get('trim_content') is True):
+    if edit.get('trim_content', True):
         frames = transform.trim_to_content(frames)
     ol = edit.get('outline') or {}
     if ol.get('width'):
@@ -141,15 +141,18 @@ def render(sid, final=True):
     st = library.get_sticker(sid)
     if not st:
         return
-    pack = library.current_pack()
+    pack = library.pack_of(sid) or library.current_pack()
     spec_all, tname = target_for(st, pack.get('type', 'regular'))
     is_video = st['source']['kind'] == 'video'
     spec = spec_all['video' if is_video else 'static']
     edit = st.get('edit') or {}
     d = library.media_dir(sid)
     t0 = time.time()
-    library.update_sticker(sid, out={'status': 'rendering'})
-    events.emit('sticker', {'id': sid, 'out': {'status': 'rendering'}})
+    # the old file stays on disk while this runs, but it is not "ready" any more
+    prev = dict(st.get('out') or {})
+    prev.update(status='rendering', ready=False)
+    library.set_out(sid, prev)
+    events.emit('sticker', {'id': sid, 'out': prev})
     try:
         frames, fps, info = pipeline(st, edit, spec, is_video)
         out = dict(info)
@@ -205,13 +208,16 @@ def render(sid, final=True):
             out['ready'] = not reasons
             out['reasons'] = reasons
         out.update(status='done', final=final, gen=gen, target=tname, took=round(time.time() - t0, 2),
-                   limit=spec['bytes'], side=spec['side'])
-        library.update_sticker(sid, out=out)
+                   limit=spec['bytes'], side=spec['side'], pack_type=pack.get('type', 'regular'))
+        library.set_out(sid, out)
         events.emit('sticker', {'id': sid, 'out': out})
     except Exception as e:
         log.exception('render failed for %s', sid)
-        out = dict(status='error', error=str(e)[-300:], ready=False, gen=int(time.time() * 1000))
-        library.update_sticker(sid, out=out)
+        msg = str(e)[-300:]
+        if 'ffmpeg' in msg.lower() or 'Error number' in msg or 'decode' in msg.lower():
+            msg = 'The file could not be decoded. ' + msg.splitlines()[-1][:120]
+        out = dict(status='error', error=msg, ready=False, gen=int(time.time() * 1000))
+        library.set_out(sid, out)
         events.emit('sticker', {'id': sid, 'out': out})
 
 
@@ -221,7 +227,7 @@ def schedule_render(sid, final=True):
 
 # ---- intake ------------------------------------------------------------------------------------------
 
-def intake(path, name):
+def intake(path, name, edit=None, emoji=None, keywords=None):
     """Probe a new file, make its thumbnail and filmstrip, add it to the library and queue its first render."""
     try:
         info = probe(path)
@@ -248,13 +254,12 @@ def intake(path, name):
                 strip.convert('RGB').save(d / 'strip.jpg', quality=82)
         except Exception as e:
             log.warning('filmstrip failed: %s', e)
-    edit = {}
-    if info['kind'] == 'video' and (info['duration'] or 0) > TG['video_seconds']:
-        edit['fit_time'] = 'loop'      # a long clip: find its best loop by default
-    if info['kind'] == 'video' and not info.get('alpha'):
-        pass  # the person decides on keying; auto-keying a live video would eat skin tones
-    rec = dict(id=sid, name=name, source=info, emoji=[default_emoji(name)], keywords=[], edit=edit,
-               out={'status': 'queued'}, created=library.now(), updated=library.now())
+    if edit is None:
+        edit = {}
+        if info['kind'] == 'video' and (info['duration'] or 0) > TG['video_seconds']:
+            edit['fit_time'] = 'loop'      # a long clip: find its best loop by default
+    rec = dict(id=sid, name=name, source=info, emoji=list(emoji or [default_emoji(name)]), keywords=list(keywords or []),
+               edit=dict(edit), out={'status': 'queued'}, created=library.now(), updated=library.now())
     library.add_sticker(rec)
     events.emit('sticker', {'id': sid, 'record': rec})
     schedule_render(sid)
@@ -316,8 +321,13 @@ def safe_name(name):
 def preview_pick(sid, x, y):
     """The source colour under a tap on the preview (fractions), for the key picker."""
     st = library.get_sticker(sid)
-    frames, _ = _source_frames(st, st.get('edit') or {}, TARGETS['telegram']['static'], st['source']['kind'] == 'video')
     edit = st.get('edit') or {}
+    src = st['source']
+    if src['kind'] == 'video':
+        t = float(edit.get('start') or 0)
+        frames, _ = load_frames(src['path'], src, 640, t, t + 0.3, fps=10, max_frames=1)
+    else:
+        frames = load_image(src['path'], 640)[None]
     if edit.get('bars', True) and not edit.get('crop'):
         box = transform.bars_box(frames[:1])
         if box:

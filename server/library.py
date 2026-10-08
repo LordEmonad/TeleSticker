@@ -61,9 +61,10 @@ def snapshot():
         return deepcopy(_load())
 
 
-def media_dir(sid):
+def media_dir(sid, create=True):
     d = MEDIA_DIR / sid
-    d.mkdir(parents=True, exist_ok=True)
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
     return d
 
 
@@ -99,6 +100,44 @@ def update_sticker(sid, **fields):
         s['updated'] = now()
         _save()
         return deepcopy(s)
+
+
+def set_out(sid, out):
+    """Replace a sticker's render record whole (a merge would keep stale flags like `ready` across renders)."""
+    with _lock:
+        db = _load()
+        s = db['stickers'].get(sid)
+        if not s:
+            return None
+        s['out'] = dict(out)
+        s['updated'] = now()
+        _save()
+        return deepcopy(s)
+
+
+def set_edit(sid, edit):
+    with _lock:
+        db = _load()
+        s = db['stickers'].get(sid)
+        if not s:
+            return None
+        s['edit'] = dict(edit)
+        s['updated'] = now()
+        _save()
+        return deepcopy(s)
+
+
+def pack_of(sid):
+    """The pack a sticker belongs to (the current one if it is in several), or None."""
+    with _lock:
+        db = _load()
+        cur = db['packs'].get(db.get('current_pack'))
+        if cur and sid in cur['stickers']:
+            return deepcopy(cur)
+        for p in db['packs'].values():
+            if sid in p['stickers']:
+                return deepcopy(p)
+        return None
 
 
 def delete_sticker(sid):

@@ -56,7 +56,15 @@ def bootstrap():
     if '--ai' in sys.argv:
         print('Installing AI background removal (rembg)...')
         subprocess.run([str(venv_python()), '-m', 'pip', 'install', '--disable-pip-version-check', '-q', 'rembg>=2.0.60', 'onnxruntime>=1.17'])
-    os.execv(str(venv_python()), [str(venv_python()), str(ROOT / 'emosticker.py')] + [a for a in sys.argv[1:] if a != '--ai'])
+    args = [str(venv_python()), str(ROOT / 'emosticker.py')] + [a for a in sys.argv[1:] if a != '--ai']
+    if os.name == 'nt':
+        # execv does not replace the process on Windows: run the venv python and wait for it, so Ctrl+C and the
+        # console window belong to the server
+        try:
+            sys.exit(subprocess.run(args).returncode)
+        except KeyboardInterrupt:
+            sys.exit(0)
+    os.execv(args[0], args)
 
 
 def ffmpeg_hint():
